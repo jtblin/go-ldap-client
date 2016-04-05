@@ -11,20 +11,29 @@ import (
 )
 
 type LDAPClient struct {
-	Conn         *ldap.Conn
-	Host         string
-	Port         int
-	UseSSL       bool
-	BindDN       string
-	BindPassword string
-	GroupFilter  string // e.g. "(memberUid=%s)"
-	UserFilter   string // e.g. "(uid=%s)"
-	Base         string
-	Attributes   []string
+	Conn              *ldap.Conn
+	Host              string
+	Port              int
+	UseSSL            bool
+	BindDN            string
+	BindPassword      string
+	GroupFilter       string // e.g. "(memberUid=%s)"
+	UserFilter        string // e.g. "(uid=%s)"
+	Base              string
+	Attributes        []string
+	ForceReconnection bool //re-establish the LDAP server connection before any operation
 }
 
 // Connect connects to the ldap backend
 func (lc *LDAPClient) Connect() error {
+
+	if lc.ForceReconnection {
+		if lc.Conn != nil {
+			lc.Conn.Close()
+			lc.Conn = nil
+		}
+	}
+
 	if lc.Conn == nil {
 		var l *ldap.Conn
 		var err error
