@@ -56,6 +56,7 @@ func (lc *LDAPClient) Connect() error {
 func (lc *LDAPClient) Close() {
 	if lc.Conn != nil {
 		lc.Conn.Close()
+		lc.Conn = nil
 	}
 }
 
