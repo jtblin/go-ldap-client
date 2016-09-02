@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"bytes"
 	"gopkg.in/ldap.v2"
 )
 
@@ -15,9 +16,11 @@ type LDAPClient struct {
 	Base               string
 	BindDN             string
 	BindPassword       string
+	GroupDN            string
 	GroupFilter        string // e.g. "(memberUid=%s)"
 	Host               string
 	ServerName         string
+	UserDN             string
 	UserFilter         string // e.g. "(uid=%s)"
 	Conn               *ldap.Conn
 	Port               int
@@ -86,7 +89,7 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	attributes := append(lc.Attributes, "dn")
 	// Search for the given username
 	searchRequest := ldap.NewSearchRequest(
-		lc.Base,
+		joinDn(lc.UserDN, lc.Base),
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(lc.UserFilter, username),
 		attributes,
@@ -137,7 +140,7 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	}
 
 	searchRequest := ldap.NewSearchRequest(
-		lc.Base,
+		joinDn(lc.GroupDN, lc.Base),
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(lc.GroupFilter, username),
 		[]string{"cn"}, // can it be something else than "cn"?
@@ -152,4 +155,21 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 		groups = append(groups, entry.GetAttributeValue("cn"))
 	}
 	return groups, nil
+}
+
+func joinDn(dns ...string) string {
+	result := bytes.NewBufferString("")
+	first := true
+	for _, dn := range dns {
+		if len(dn) == 0 {
+			continue
+		}
+		if first {
+			first = false
+		} else {
+			result.WriteString(",")
+		}
+		result.WriteString(dn)
+	}
+	return result.String()
 }
