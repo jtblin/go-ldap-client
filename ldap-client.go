@@ -21,6 +21,10 @@ type LDAPClient struct {
 	UserFilter   string // e.g. "(uid=%s)"
 	Base         string
 	Attributes   []string
+
+	// Optional fields
+	InsecureSkipVerify bool
+	ServerName         string
 }
 
 // Connect connects to the ldap backend
@@ -41,7 +45,10 @@ func (lc *LDAPClient) Connect() error {
 				return err
 			}
 		} else {
-			l, err = ldap.DialTLS("tcp", address, &tls.Config{InsecureSkipVerify: false})
+			l, err = ldap.DialTLS("tcp", address, &tls.Config{
+				InsecureSkipVerify: lc.InsecureSkipVerify,
+				ServerName:         lc.ServerName,
+			})
 			if err != nil {
 				return err
 			}
