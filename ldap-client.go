@@ -11,23 +11,21 @@ import (
 )
 
 type LDAPClient struct {
-	Conn         *ldap.Conn
-	Host         string
-	Port         int
-	UseSSL       bool
-	BindDN       string
-	BindPassword string
-	GroupFilter  string // e.g. "(memberUid=%s)"
-	UserFilter   string // e.g. "(uid=%s)"
-	Base         string
-	Attributes   []string
-
-	// Optional fields
-	InsecureSkipVerify bool
+	Attributes         []string
+	Base               string
+	BindDN             string
+	BindPassword       string
+	GroupFilter        string // e.g. "(memberUid=%s)"
+	Host               string
 	ServerName         string
+	UserFilter         string // e.g. "(uid=%s)"
+	Conn               *ldap.Conn
+	Port               int
+	InsecureSkipVerify bool
+	UseSSL             bool
 }
 
-// Connect connects to the ldap backend
+// Connect connects to the ldap backend.
 func (lc *LDAPClient) Connect() error {
 	if lc.Conn == nil {
 		var l *ldap.Conn
@@ -59,7 +57,7 @@ func (lc *LDAPClient) Connect() error {
 	return nil
 }
 
-// Close closes the ldap backend connection
+// Close closes the ldap backend connection.
 func (lc *LDAPClient) Close() {
 	if lc.Conn != nil {
 		lc.Conn.Close()
@@ -67,7 +65,7 @@ func (lc *LDAPClient) Close() {
 	}
 }
 
-// Authenticate authenticates the user against the ldap backend
+// Authenticate authenticates the user against the ldap backend.
 func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]string, error) {
 	err := lc.Connect()
 	if err != nil {
@@ -128,7 +126,7 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	return true, user, nil
 }
 
-// GetGroupsOfUser returns the group for a user
+// GetGroupsOfUser returns the group for a user.
 func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	err := lc.Connect()
 	if err != nil {
