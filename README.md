@@ -29,7 +29,7 @@ func main() {
 		GroupFilter: "(memberUid=%s)",
 		Attributes:   []string{"givenName", "sn", "mail", "uid"},
 	}
-	# It is the responsibility of the caller to close the connection
+	// It is the responsibility of the caller to close the connection
 	defer client.Close()
 
 	ok, user, err := client.Authenticate("username", "password")
@@ -48,6 +48,11 @@ func main() {
 	log.Printf("Groups: %+v", groups) 
 }
 ```
+
+## SSL (ldaps)
+
+If you use SSL, you will need to pass the server name for certificate verification
+or skip domain name verification e.g.`client.ServerName = "ldap.example.com"`.
 
 # Why?
 
