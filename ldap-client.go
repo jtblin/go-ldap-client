@@ -23,6 +23,7 @@ type LDAPClient struct {
 	Port               int
 	InsecureSkipVerify bool
 	UseSSL             bool
+	SkipTLS            bool
 }
 
 // Connect connects to the ldap backend.
@@ -38,9 +39,11 @@ func (lc *LDAPClient) Connect() error {
 			}
 
 			// Reconnect with TLS
-			err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
-			if err != nil {
-				return err
+			if !lc.SkipTLS {
+				err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
+				if err != nil {
+					return err
+				}
 			}
 		} else {
 			l, err = ldap.DialTLS("tcp", address, &tls.Config{
