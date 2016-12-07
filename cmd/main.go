@@ -10,6 +10,7 @@ import (
 var base, bindDN, bindPassword, groupFilter, host, password, serverName, userFilter, username string
 var port int
 var useSSL bool
+var skipTLS bool
 
 type server struct{}
 
@@ -21,6 +22,7 @@ func main() {
 		Host:         host,
 		Port:         port,
 		UseSSL:       useSSL,
+		SkipTLS:      skipTLS,
 		BindDN:       bindDN,
 		BindPassword: bindPassword,
 		UserFilter:   userFilter,
@@ -58,4 +60,5 @@ func init() {
 	flag.StringVar(&username, "username", "", "Username")
 	flag.StringVar(&serverName, "server-name", "", "Server name for SSL (if use-ssl is set)")
 	flag.BoolVar(&useSSL, "use-ssl", false, "Use SSL")
+	flag.BoolVar(&skipTLS, "skip-tls", false, "Skip TLS start")
 }
