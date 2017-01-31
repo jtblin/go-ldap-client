@@ -113,9 +113,13 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	}
 
 	// Bind as the user to verify their password
-	err = lc.Conn.Bind(userDN, password)
-	if err != nil {
-		return false, user, err
+	if userDN != "" && password != "" {
+		err = lc.Conn.Bind(userDN, password)
+		if err != nil {
+			return false, user, err
+		}
+	} else {
+		return false, user, errors.New("No username/passowrd provided.")
 	}
 
 	// Rebind as the read only user for any further queries
