@@ -73,18 +73,18 @@ func (lc *LDAPClient) Close() {
 	}
 }
 
-// Authenticate authenticates the user against the ldap backend.
-func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]string, error) {
+// FindUser with specified username against the ldap backend.
+func (lc *LDAPClient) FindUser(username string) (map[string]string, error) {
 	err := lc.Connect()
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
 
 	// First bind with a read only user
 	if lc.BindDN != "" && lc.BindPassword != "" {
 		err := lc.Conn.Bind(lc.BindDN, lc.BindPassword)
 		if err != nil {
-			return false, nil, err
+			return nil, err
 		}
 	}
 
@@ -100,15 +100,15 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 
 	sr, err := lc.Conn.Search(searchRequest)
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
 
 	if len(sr.Entries) < 1 {
-		return false, nil, errors.New("User does not exist")
+		return nil, errors.New("User does not exist")
 	}
 
 	if len(sr.Entries) > 1 {
-		return false, nil, errors.New("Too many entries returned")
+		return nil, errors.New("Too many entries returned")
 	}
 
 	userDN := sr.Entries[0].DN
@@ -116,19 +116,24 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	for _, attr := range lc.Attributes {
 		user[attr] = sr.Entries[0].GetAttributeValue(attr)
 	}
+	user["dn"] = userDN
+
+	return user, nil
+}
+
+// Authenticate authenticates the user against the ldap backend.
+func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]string, error) {
+	user, err := lc.FindUser(username)
+	if err != nil {
+		return false, nil, err
+	}
+
+	userDN := user["dn"]
 
 	// Bind as the user to verify their password
 	err = lc.Conn.Bind(userDN, password)
 	if err != nil {
 		return false, user, err
-	}
-
-	// Rebind as the read only user for any further queries
-	if lc.BindDN != "" && lc.BindPassword != "" {
-		err = lc.Conn.Bind(lc.BindDN, lc.BindPassword)
-		if err != nil {
-			return true, user, err
-		}
 	}
 
 	return true, user, nil
