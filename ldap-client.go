@@ -4,8 +4,10 @@ package ldap
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
 
 	"gopkg.in/ldap.v2"
 )
@@ -25,6 +27,7 @@ type LDAPClient struct {
 	UseSSL             bool
 	SkipTLS            bool
 	ClientCertificates []tls.Certificate // Adding client certificates
+	CACertFiles        []string          // CA cert to verify ldaps server
 }
 
 // Connect connects to the ldap backend.
@@ -53,6 +56,17 @@ func (lc *LDAPClient) Connect() error {
 			}
 			if lc.ClientCertificates != nil && len(lc.ClientCertificates) > 0 {
 				config.Certificates = lc.ClientCertificates
+			}
+			if lc.CACertFiles != nil && len(lc.CACertFiles) > 0 {
+				caCertPool := x509.NewCertPool()
+				for _, certFile := range lc.CACertFiles {
+					caCert, err := ioutil.ReadFile(certFile)
+					if err != nil {
+						return err
+					}
+					caCertPool.AppendCertsFromPEM(caCert)
+				}
+				config.RootCAs = caCertPool
 			}
 			l, err = ldap.DialTLS("tcp", address, config)
 			if err != nil {
