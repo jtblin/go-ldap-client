@@ -82,7 +82,7 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 
 	// First bind with a read only user
 	if lc.BindDN != "" && lc.BindPassword != "" {
-		err := lc.Conn.Bind(lc.BindDN, lc.BindPassword)
+		err = lc.Conn.Bind(lc.BindDN, lc.BindPassword)
 		if err != nil {
 			return false, nil, err
 		}
@@ -139,6 +139,15 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	err := lc.Connect()
 	if err != nil {
 		return nil, err
+	}
+	defer lc.Close()
+
+	// First bind with a read only user
+	if lc.BindDN != "" && lc.BindPassword != "" {
+		err = lc.Conn.Bind(lc.BindDN, lc.BindPassword)
+		if err != nil {
+			return []string{}, err
+		}
 	}
 
 	searchRequest := ldap.NewSearchRequest(
