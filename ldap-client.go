@@ -74,7 +74,7 @@ func (lc *LDAPClient) Close() {
 }
 
 // Authenticate authenticates the user against the ldap backend.
-func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]string, error) {
+func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string][]string, error) {
 	err := lc.Connect()
 	if err != nil {
 		return false, nil, err
@@ -112,9 +112,9 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	}
 
 	userDN := sr.Entries[0].DN
-	user := map[string]string{}
+	user := map[string][]string{}
 	for _, attr := range lc.Attributes {
-		user[attr] = sr.Entries[0].GetAttributeValue(attr)
+		user[attr] = sr.Entries[0].GetAttributeValues(attr)
 	}
 
 	// Bind as the user to verify their password
