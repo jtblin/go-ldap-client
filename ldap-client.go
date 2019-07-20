@@ -158,3 +158,34 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	}
 	return groups, nil
 }
+
+// AuthenticateGroups checks if the user is in the specified groups
+func (lc *LDAPClient) AuthenticateGroups(username string) (bool, error) {
+    err := lc.Connect()
+    if err != nil {
+        return false, err
+    }
+ 
+    // Search if user is in groups
+    for _, group := range lc.GroupsAllowed {
+        searchRequest := ldap.NewSearchRequest(
+            lc.Base,
+            ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+            fmt.Sprintf(lc.GroupsAllowedFilter, username, group),
+            []string{"dn", "cn"},
+            nil,
+        )
+ 
+        gr, err := lc.Conn.Search(searchRequest)
+        if err != nil {
+            return false, err
+        }
+ 
+        if len(gr.Entries) != 1 {
+            continue
+        } else if len(gr.Entries) == 1 {
+            return true, nil
+        }
+    }
+    return false, nil
+}
