@@ -4,10 +4,14 @@ package ldap
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 
 	"gopkg.in/ldap.v2"
+)
+
+var (
+	errTooManyEntries = fmt.Errorf("too many entries returned")
+	errUserNotExist   = fmt.Errorf("user does not exist")
 )
 
 type LDAPClient struct {
@@ -104,11 +108,11 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	}
 
 	if len(sr.Entries) < 1 {
-		return false, nil, errors.New("User does not exist")
+		return false, nil, errUserNotExist
 	}
 
 	if len(sr.Entries) > 1 {
-		return false, nil, errors.New("Too many entries returned")
+		return false, nil, errTooManyEntries
 	}
 
 	userDN := sr.Entries[0].DN
@@ -134,6 +138,49 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	return true, user, nil
 }
 
+// Search searches the ldap backend for the given ldap query.
+func (lc *LDAPClient) Search(query string) (ok bool, err error) {
+	if err = lc.Connect(); err != nil {
+		return
+	}
+
+	//// First bind with a read only user
+	//if lc.BindDN != "" && lc.BindPassword != "" {
+	//	if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
+	//		return
+	//	}
+	//}
+
+	attributes := []string{"dn"}
+	// Search for the given username
+	searchRequest := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		query,
+		attributes,
+		nil,
+	)
+
+	var sr *ldap.SearchResult
+	if sr, err = lc.Conn.Search(searchRequest); err != nil {
+		return
+	}
+
+	if len(sr.Entries) < 1 {
+		// no matching entries for query.
+		return
+	}
+
+	if len(sr.Entries) > 1 {
+		err = errTooManyEntries
+		return
+	}
+
+	ok = true
+
+	return
+}
+
 // GetGroupsOfUser returns the group for a user.
 func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	err := lc.Connect()
@@ -152,7 +199,7 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	groups := []string{}
+	var groups []string
 	for _, entry := range sr.Entries {
 		groups = append(groups, entry.GetAttributeValue("cn"))
 	}
