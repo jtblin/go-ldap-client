@@ -139,38 +139,34 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 }
 
 // Search searches the ldap backend for the given ldap query.
-func (lc *LDAPClient) Search(username, query string) (ok bool, err error) {
+func (lc *LDAPClient) SearchQueries(username string, queries []string) (results map[string]bool, err error) {
 	if err = lc.Connect(); err != nil {
 		return
 	}
 
+	results = map[string]bool{}
+
 	attributes := []string{"dn"}
-	// Search for the given username
 	userFilter := fmt.Sprintf(lc.UserFilter, username)
-	searchRequest := ldap.NewSearchRequest(
-		lc.Base,
-		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(&%s%s)", userFilter, query),
-		attributes,
-		nil,
-	)
 
-	var sr *ldap.SearchResult
-	if sr, err = lc.Conn.Search(searchRequest); err != nil {
-		return
+	for _, query := range queries {
+		searchRequest := ldap.NewSearchRequest(
+			lc.Base,
+			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+			fmt.Sprintf("(&%s%s)", userFilter, query),
+			attributes,
+			nil,
+		)
+
+		var sr *ldap.SearchResult
+		if sr, err = lc.Conn.Search(searchRequest); err != nil {
+			return
+		}
+
+		if len(sr.Entries) == 1 {
+			results[query] = true
+		}
 	}
-
-	if len(sr.Entries) < 1 {
-		// no matching entries for query.
-		return
-	}
-
-	if len(sr.Entries) > 1 {
-		err = errTooManyEntries
-		return
-	}
-
-	ok = true
 
 	return
 }

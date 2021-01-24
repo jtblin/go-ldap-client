@@ -70,7 +70,7 @@ func Test_LDAPClient(t *testing.T) {
 
 		query := "(ou=Office Management)"
 		attribute := "cn"
-		results, err := client.Search("fry", "(ou=Delivering Crew)")
+		results, err := client.SearchQueries("fry", []string{"(ou=Delivering Crew)", "(ou=Ship Crew)"})
 		if err != nil {
 			log.Fatalf("Error searching query %s and attribute %s: %+v", query, attribute, err)
 		}
