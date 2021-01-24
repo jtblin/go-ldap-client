@@ -139,24 +139,18 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 }
 
 // Search searches the ldap backend for the given ldap query.
-func (lc *LDAPClient) Search(query string) (ok bool, err error) {
+func (lc *LDAPClient) Search(username, query string) (ok bool, err error) {
 	if err = lc.Connect(); err != nil {
 		return
 	}
 
-	//// First bind with a read only user
-	//if lc.BindDN != "" && lc.BindPassword != "" {
-	//	if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
-	//		return
-	//	}
-	//}
-
 	attributes := []string{"dn"}
 	// Search for the given username
+	userFilter := fmt.Sprintf(lc.UserFilter, username)
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		query,
+		fmt.Sprintf("(&%s%s)", userFilter, query),
 		attributes,
 		nil,
 	)
