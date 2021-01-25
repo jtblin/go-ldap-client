@@ -6,7 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-
+	"strings"
 	"gopkg.in/ldap.v2"
 )
 
