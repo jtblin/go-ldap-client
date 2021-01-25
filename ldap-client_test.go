@@ -45,7 +45,7 @@ func Test_LDAPClient(t *testing.T) {
 		log.Printf("Groups: %+v", groups)
 	})
 
-	t.Run("Search", func(t *testing.T) {
+	t.Run("RunQueries", func(t *testing.T) {
 		client := &LDAPClient{
 			Base:         "ou=People,dc=planetexpress,dc=com",
 			Host:         "localhost",
@@ -70,7 +70,7 @@ func Test_LDAPClient(t *testing.T) {
 
 		query := "(ou=Office Management)"
 		attribute := "cn"
-		results, err := client.SearchQueries("fry", []string{"(ou=Delivering Crew)", "(ou=Ship Crew)"})
+		results, err := client.RunQueries("fry", []string{"(ou=Delivering Crew)", "(ou=Ship Crew)"})
 		if err != nil {
 			log.Fatalf("Error searching query %s and attribute %s: %+v", query, attribute, err)
 		}

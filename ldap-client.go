@@ -138,8 +138,8 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	return true, user, nil
 }
 
-// Search searches the ldap backend for the given ldap queries.
-func (lc *LDAPClient) SearchQueries(username string, queries []string) (results map[string]bool, err error) {
+// RunQueries runs the given ldap queries against the ldap backend and returns the matched queries.
+func (lc *LDAPClient) RunQueries(username string, queries []string) (results map[string]bool, err error) {
 	if err = lc.Connect(); err != nil {
 		return
 	}
