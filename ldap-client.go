@@ -138,10 +138,17 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	return true, user, nil
 }
 
-// Search searches the ldap backend for the given ldap query.
+// Search searches the ldap backend for the given ldap queries.
 func (lc *LDAPClient) SearchQueries(username string, queries []string) (results map[string]bool, err error) {
 	if err = lc.Connect(); err != nil {
 		return
+	}
+
+	// First bind with a read only user
+	if lc.BindDN != "" && lc.BindPassword != "" {
+		if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
+			return
+		}
 	}
 
 	results = map[string]bool{}
