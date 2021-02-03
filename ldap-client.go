@@ -202,3 +202,28 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	}
 	return groups, nil
 }
+
+// GetLdapGroups returns list of groups matching a name.
+func (lc *LDAPClient) GetLdapGroups(groupName string) ([]string, error) {
+	err := lc.Connect()
+	if err != nil {
+		return nil, err
+	}
+
+	searchRequest := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf("(&(objectCategory=Group)(distinguishedName=*%s*))", groupName),
+		[]string{"cn"}, // can it be something else than "cn"?
+		nil,
+	)
+	sr, err := lc.Conn.Search(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+	var groups []string
+	for _, entry := range sr.Entries {
+		groups = append(groups, entry.GetAttributeValue("cn"))
+	}
+	return groups, nil
+}
