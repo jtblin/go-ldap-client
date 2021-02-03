@@ -31,6 +31,11 @@ type LDAPClient struct {
 	ClientCertificates []tls.Certificate // Adding client certificates
 }
 
+type LdapGroup struct {
+	Name          string
+	ExpectedValue string
+}
+
 // Connect connects to the ldap backend.
 func (lc *LDAPClient) Connect() error {
 	if lc.Conn == nil {
@@ -199,6 +204,43 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	var groups []string
 	for _, entry := range sr.Entries {
 		groups = append(groups, entry.GetAttributeValue("cn"))
+	}
+	return groups, nil
+}
+
+// GetAllGroupsByName returns list of groups matching a name.
+func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) {
+	err := lc.Connect()
+	if err != nil {
+		return nil, err
+	}
+
+	// First bind with a read only user
+	if lc.BindDN != "" && lc.BindPassword != "" {
+		if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
+			return nil, nil
+		}
+	}
+
+	searchRequest := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf("(&(objectClass=Group)(cn=*%s*))", groupName),
+		[]string{"cn"},
+		nil,
+	)
+
+	sr, err := lc.Conn.Search(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+	var groups []LdapGroup
+	for _, entry := range sr.Entries {
+		group := LdapGroup{
+			Name:          entry.GetAttributeValue("cn"),
+			ExpectedValue: entry.DN,
+		}
+		groups = append(groups, group)
 	}
 	return groups, nil
 }

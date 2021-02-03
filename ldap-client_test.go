@@ -77,4 +77,26 @@ func Test_LDAPClient(t *testing.T) {
 
 		log.Printf("found: %+v", results)
 	})
+
+	t.Run("GetAllGroupsByName", func(t *testing.T) {
+		client := &LDAPClient{
+			Base:         "ou=People,dc=planetexpress,dc=com",
+			Host:         "127.0.0.1",
+			Port:         389,
+			UseSSL:       false,
+			BindDN:       "cn=admin,dc=planetexpress,dc=com",
+			BindPassword: "GoodNewsEveryone",
+			UserFilter:   "(uid=%s)",
+			GroupFilter:  "(memberUid=%s)",
+			Attributes:   []string{"givenName", "sn", "mail", "uid"},
+		}
+		defer client.Close()
+
+		results, err := client.GetAllGroupsByName("ship_crew")
+		if err != nil {
+			log.Fatalf("Error getting all groups  matching to %s, %v", "ship_crew", err)
+		}
+
+		log.Printf("found: %+v", results)
+	})
 }
