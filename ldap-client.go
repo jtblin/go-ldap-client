@@ -208,7 +208,7 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	return groups, nil
 }
 
-// GetLdapGroups returns list of groups matching a name.
+// GetAllGroupsByName returns list of groups matching a name.
 func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) {
 	err := lc.Connect()
 	if err != nil {
@@ -225,8 +225,8 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf("(&(objectCategory=Group)(distinguishedName=*%s*))", groupName),
-		[]string{"dn", "displayName"},
+		fmt.Sprintf("(&(objectClass=Group)(cn=*%s*))", groupName),
+		[]string{"cn"},
 		nil,
 	)
 
@@ -237,8 +237,8 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 	var groups []LdapGroup
 	for _, entry := range sr.Entries {
 		group := LdapGroup{
-			Name:          entry.GetAttributeValue("displayName"),
-			ExpectedValue: entry.GetAttributeValue("dn"),
+			Name:          entry.GetAttributeValue("cn"),
+			ExpectedValue: entry.DN,
 		}
 		groups = append(groups, group)
 	}
