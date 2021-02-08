@@ -32,8 +32,8 @@ type LDAPClient struct {
 }
 
 type LdapGroup struct {
-	Name          string
-	ExpectedValue string
+	Name              string
+	DistinguishedName string
 }
 
 // Connect connects to the ldap backend.
@@ -237,8 +237,8 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 	var groups []LdapGroup
 	for _, entry := range sr.Entries {
 		group := LdapGroup{
-			Name:          entry.GetAttributeValue("cn"),
-			ExpectedValue: entry.DN,
+			Name:              entry.GetAttributeValue("cn"),
+			DistinguishedName: entry.DN,
 		}
 		groups = append(groups, group)
 	}
