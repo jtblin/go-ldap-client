@@ -109,7 +109,7 @@ func Test_LDAPClient(t *testing.T) {
 			SkipTLS:            false,
 			InsecureSkipVerify: true,
 			BindDN:             "CN=dedi,CN=Users,DC=test,DC=io",
-			BindPassword:       "AAAaaa123",
+			BindPassword:       "blala",
 			UserFilter:         "(sAMAccountName=%s)",
 			GroupFilter:        "(gid=%s)",
 			Attributes:         []string{"sAMAccountName", "uid"},
