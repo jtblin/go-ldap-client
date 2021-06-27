@@ -5,9 +5,12 @@ package ldap
 import (
 	"crypto/tls"
 	"fmt"
-
+	"golang.org/x/text/encoding/unicode"
 	"gopkg.in/ldap.v2"
 )
+
+// adPasswordAttribute is the password attribute name in active directory.
+const adPasswordAttributeName = "UnicodePwd"
 
 var (
 	errTooManyEntries = fmt.Errorf("too many entries returned")
@@ -243,4 +246,90 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 		groups = append(groups, group)
 	}
 	return groups, nil
+}
+
+// ChangeUserPassword changes user's password.
+// Note - currently this function is relevant only to Active Directory.
+func (lc *LDAPClient) ChangeUserPassword(username, oldPassword, newPassword string) (err error) {
+	err = lc.Connect()
+	if err != nil {
+		return
+	}
+
+	// first bind with a read only user
+	if lc.BindDN != "" && lc.BindPassword != "" {
+		if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
+			err = fmt.Errorf("could not bind read only user: %s", err.Error())
+			return
+		}
+	}
+
+	attributes := append(lc.Attributes, "dn")
+	// Search for the given username
+	searchRequest := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf(lc.UserFilter, username),
+		attributes,
+		nil,
+	)
+
+	sr, err := lc.Conn.Search(searchRequest)
+	if err != nil {
+		return err
+	}
+
+	if len(sr.Entries) < 1 {
+		return errUserNotExist
+	}
+
+	if len(sr.Entries) > 1 {
+		return errTooManyEntries
+	}
+
+	userDN := sr.Entries[0].DN
+	user := map[string][]string{}
+	for _, attr := range lc.Attributes {
+		user[attr] = sr.Entries[0].GetAttributeValues(attr)
+	}
+
+	// bind as the user to verify their current password
+	if err = lc.Conn.Bind(userDN, oldPassword); err != nil {
+		err = fmt.Errorf("could not bind user via old password: %s", err.Error())
+		return
+	}
+
+	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+
+	var encodePasswordForAD = func(pass string) (encoded string, err error) {
+		if encoded, err = utf16.NewEncoder().String(fmt.Sprintf("\"%s\"", pass)); err != nil {
+			err = fmt.Errorf("password could not be utf16 encoded: %s", err.Error())
+		}
+		return
+	}
+
+	var oldEncodedPass, newEncodedPass string
+
+	if oldEncodedPass, err = encodePasswordForAD(oldPassword); err != nil {
+		return
+	}
+	if newEncodedPass, err = encodePasswordForAD(newPassword); err != nil {
+		return
+	}
+
+	modify := ldap.NewModifyRequest(userDN)
+	modify.Delete(adPasswordAttributeName, []string{oldEncodedPass})
+	modify.Add(adPasswordAttributeName, []string{newEncodedPass})
+	if err = lc.Conn.Modify(modify); err != nil {
+		err = fmt.Errorf("password could not be changed: %s", err.Error())
+		return
+	}
+
+	// bind as the user to verify their new password
+	if err = lc.Conn.Bind(userDN, newPassword); err != nil {
+		err = fmt.Errorf("could not bind user via new password: %s", err.Error())
+		return
+	}
+
+	return
 }
