@@ -13,8 +13,9 @@ import (
 const adPasswordAttributeName = "UnicodePwd"
 
 var (
-	errTooManyEntries    = fmt.Errorf("too many entries returned")
-	errUserNotExist      = fmt.Errorf("user does not exist")
+	// errUserNotExist represents a situation in which the user object doesn't exist.
+	errUserNotExist = fmt.Errorf("user does not exist")
+	// errUserNotIdentified represents a situation in which the user could not be identified.
 	errUserNotIdentified = fmt.Errorf("user could not be indentifed")
 )
 
@@ -121,7 +122,7 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	}
 
 	if len(sr.Entries) > 1 {
-		return false, nil, errTooManyEntries
+		return false, nil, errUserNotIdentified
 	}
 
 	userDN := sr.Entries[0].DN
