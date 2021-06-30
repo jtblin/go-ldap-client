@@ -102,21 +102,21 @@ func Test_LDAPClient(t *testing.T) {
 
 	t.Run("ChangeUserPassword", func(t *testing.T) {
 		client := &LDAPClient{
-			Base:               "DC=test,DC=io",
-			Host:               "54.229.168.53",
+			Base:               "DC=trial,DC=local",
+			Host:               "34.244.56.18",
 			Port:               636,
 			UseSSL:             true,
 			SkipTLS:            false,
 			InsecureSkipVerify: true,
-			BindDN:             "CN=dedi,CN=Users,DC=test,DC=io",
-			BindPassword:       "blala",
+			BindDN:             "CN=mike-t,DC=trial,DC=local",
+			BindPassword:       "Aa123456#",
 			UserFilter:         "(sAMAccountName=%s)",
 			GroupFilter:        "(gid=%s)",
 			Attributes:         []string{"sAMAccountName", "uid"},
 		}
 		defer client.Close()
 
-		oldPassword, newPassword := "Bb123456", "Vv123456"
+		oldPassword, newPassword := "Aa123456#", "Vv123456#"
 		err := client.ChangeUserPassword("mike-t", oldPassword, newPassword)
 		if err != nil {
 			log.Fatalf("Error changing user password from %s to %s, %v", oldPassword, newPassword, err)
