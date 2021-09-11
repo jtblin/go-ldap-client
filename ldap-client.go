@@ -6,7 +6,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-
+	"strings"
 	"gopkg.in/ldap.v2"
 )
 
@@ -114,7 +114,8 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	userDN := sr.Entries[0].DN
 	user := map[string]string{}
 	for _, attr := range lc.Attributes {
-		user[attr] = sr.Entries[0].GetAttributeValue(attr)
+		entryattrs := sr.Entries[0].GetAttributeValues(attr)
+		user[attr] = strings.Join(entryattrs, ",")
 	}
 
 	// Bind as the user to verify their password
