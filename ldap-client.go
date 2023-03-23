@@ -9,8 +9,12 @@ import (
 	"gopkg.in/ldap.v2"
 )
 
-// adPasswordAttribute is the password attribute name in active directory.
-const adPasswordAttributeName = "UnicodePwd"
+const (
+	// adPasswordAttribute is the password attribute name in active directory.
+	adPasswordAttributeName = "UnicodePwd"
+	// openLdapPasswordAttributeName is the password attribute name in open ldap.
+	openLdapPasswordAttributeName = "userPassword"
+)
 
 var (
 	// errUserNotExist represents a situation in which the user object doesn't exist.
@@ -250,19 +254,85 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 	return groups, nil
 }
 
-// ChangeUserPassword changes user's password.
-// Note - currently this function is relevant only to Active Directory.
-func (lc *LDAPClient) ChangeUserPassword(username, oldPassword, newPassword string) (err error) {
-	err = lc.Connect()
-	if err != nil {
+// ChangeADUserPassword changes user's password in Active Directory
+func (lc *LDAPClient) ChangeADUserPassword(username, oldPassword, newPassword string) (err error) {
+	if err = lc.Connect(); err != nil {
+		return fmt.Errorf("couldn't connect to ldap server due to: err=%v", err)
+	}
+	var userDN string
+	if userDN, err = lc.getUserDN(username); err != nil {
+		return fmt.Errorf("failed to retrieve user dn due to: err=%v", err)
+	}
+
+	// bind as the user to verify their current password
+	if err = lc.Conn.Bind(userDN, oldPassword); err != nil {
+		err = fmt.Errorf("could not bind user via old password: %w", err)
 		return
+	}
+
+	var oldEncodedPass, newEncodedPass string
+
+	if oldEncodedPass, err = lc.encodePasswordForAD(oldPassword); err != nil {
+		return fmt.Errorf("failed to encode old password to ad format due to: err=%v", err)
+	}
+	if newEncodedPass, err = lc.encodePasswordForAD(newPassword); err != nil {
+		return fmt.Errorf("failed to encode old password to ad format due to: err=%v", err)
+	}
+
+	modify := ldap.NewModifyRequest(userDN)
+	modify.Delete(adPasswordAttributeName, []string{oldEncodedPass})
+	modify.Add(adPasswordAttributeName, []string{newEncodedPass})
+	if err = lc.Conn.Modify(modify); err != nil {
+		return fmt.Errorf("password could not be changed: %w", err)
+	}
+
+	// bind as the user to verify their new password
+	if err = lc.Conn.Bind(userDN, newPassword); err != nil {
+		return fmt.Errorf("could not bind user via new password: %w", err)
+	}
+
+	return nil
+}
+
+// ChangeOpenLDAPUserPassword changes user's password.
+func (lc *LDAPClient) ChangeOpenLDAPUserPassword(username, oldPassword, newPassword string) (err error) {
+	if err = lc.Connect(); err != nil {
+		return fmt.Errorf("couldn't connect to ldap server due to: err=%v", err)
+	}
+	var userDN string
+	if userDN, err = lc.getUserDN(username); err != nil {
+		return fmt.Errorf("failed to retrieve user dn due to: err=%v", err)
+	}
+
+	// bind as the user to verify their current password
+	if err = lc.Conn.Bind(userDN, oldPassword); err != nil {
+		return fmt.Errorf("could not bind user via old password: %w", err)
+	}
+
+	modify := ldap.NewModifyRequest(userDN)
+	modify.Replace(openLdapPasswordAttributeName, []string{newPassword})
+	if err = lc.Conn.Modify(modify); err != nil {
+		return fmt.Errorf("password could not be changed: %w", err)
+	}
+
+	// bind as the user to verify their new password
+	if err = lc.Conn.Bind(userDN, newPassword); err != nil {
+		return fmt.Errorf("could not bind user via new password: %w", err)
+	}
+
+	return nil
+}
+
+func (lc *LDAPClient) getUserDN(username string) (string, error) {
+	var err error
+	if err = lc.Connect(); err != nil {
+		return "", fmt.Errorf("couldn't connect to ldap server due to: err=%v", err)
 	}
 
 	// first bind with a read only user
 	if lc.BindDN != "" && lc.BindPassword != "" {
 		if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
-			err = fmt.Errorf("could not bind read only user: %w", err)
-			return
+			return "", fmt.Errorf("could not bind read only user: %w", err)
 		}
 	}
 
@@ -276,55 +346,20 @@ func (lc *LDAPClient) ChangeUserPassword(username, oldPassword, newPassword stri
 		nil,
 	)
 
-	sr, err := lc.Conn.Search(searchRequest)
-	if err != nil {
-		return err
+	var searchResult *ldap.SearchResult
+	if searchResult, err = lc.Conn.Search(searchRequest); err != nil {
+		return "", fmt.Errorf("wasn't able to find user dn in ldap due to: err=%v", err)
 	}
 
-	if len(sr.Entries) < 1 {
-		return errUserNotExist
+	if len(searchResult.Entries) < 1 {
+		return "", errUserNotExist
 	}
 
-	if len(sr.Entries) > 1 {
-		return errUserNotIdentified
+	if len(searchResult.Entries) > 1 {
+		return "", errUserNotIdentified
 	}
 
-	userDN := sr.Entries[0].DN
-	user := map[string][]string{}
-	for _, attr := range lc.Attributes {
-		user[attr] = sr.Entries[0].GetAttributeValues(attr)
-	}
-
-	// bind as the user to verify their current password
-	if err = lc.Conn.Bind(userDN, oldPassword); err != nil {
-		err = fmt.Errorf("could not bind user via old password: %w", err)
-		return
-	}
-
-	var oldEncodedPass, newEncodedPass string
-
-	if oldEncodedPass, err = lc.encodePasswordForAD(oldPassword); err != nil {
-		return
-	}
-	if newEncodedPass, err = lc.encodePasswordForAD(newPassword); err != nil {
-		return
-	}
-
-	modify := ldap.NewModifyRequest(userDN)
-	modify.Delete(adPasswordAttributeName, []string{oldEncodedPass})
-	modify.Add(adPasswordAttributeName, []string{newEncodedPass})
-	if err = lc.Conn.Modify(modify); err != nil {
-		err = fmt.Errorf("password could not be changed: %w", err)
-		return
-	}
-
-	// bind as the user to verify their new password
-	if err = lc.Conn.Bind(userDN, newPassword); err != nil {
-		err = fmt.Errorf("could not bind user via new password: %w", err)
-		return
-	}
-
-	return
+	return searchResult.Entries[0].DN, nil
 }
 
 // encodePasswordForAD encodes the password for active directory.
