@@ -257,38 +257,37 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 // ChangeADUserPassword changes user's password in Active Directory
 func (lc *LDAPClient) ChangeADUserPassword(username, oldPassword, newPassword string) (err error) {
 	if err = lc.Connect(); err != nil {
-		return fmt.Errorf("couldn't connect to ldap server due to: err=%v", err)
+		return NewLDAPError("couldn't connect to ldap server", err)
 	}
 	var userDN string
 	if userDN, err = lc.getUserDN(username); err != nil {
-		return fmt.Errorf("failed to retrieve user dn due to: err=%v", err)
+		return NewLDAPError("failed to retrieve user dn", err)
 	}
 
 	// bind as the user to verify their current password
 	if err = lc.Conn.Bind(userDN, oldPassword); err != nil {
-		err = fmt.Errorf("could not bind user via old password: %w", err)
-		return
+		return NewLDAPError("could not bind user via old password", err)
 	}
 
 	var oldEncodedPass, newEncodedPass string
 
 	if oldEncodedPass, err = lc.encodePasswordForAD(oldPassword); err != nil {
-		return fmt.Errorf("failed to encode old password to ad format due to: err=%v", err)
+		return NewLDAPError("failed to encode old password to ad format", err)
 	}
 	if newEncodedPass, err = lc.encodePasswordForAD(newPassword); err != nil {
-		return fmt.Errorf("failed to encode old password to ad format due to: err=%v", err)
+		return NewLDAPError("failed to encode new password to ad format", err)
 	}
 
 	modify := ldap.NewModifyRequest(userDN)
 	modify.Delete(adPasswordAttributeName, []string{oldEncodedPass})
 	modify.Add(adPasswordAttributeName, []string{newEncodedPass})
 	if err = lc.Conn.Modify(modify); err != nil {
-		return fmt.Errorf("password could not be changed: %w", err)
+		return NewLDAPError("password could not be changed", err)
 	}
 
 	// bind as the user to verify their new password
 	if err = lc.Conn.Bind(userDN, newPassword); err != nil {
-		return fmt.Errorf("could not bind user via new password: %w", err)
+		return NewLDAPError("could not bind user via new password", err)
 	}
 
 	return nil
@@ -297,27 +296,27 @@ func (lc *LDAPClient) ChangeADUserPassword(username, oldPassword, newPassword st
 // ChangeOpenLDAPUserPassword changes user's password.
 func (lc *LDAPClient) ChangeOpenLDAPUserPassword(username, oldPassword, newPassword string) (err error) {
 	if err = lc.Connect(); err != nil {
-		return fmt.Errorf("couldn't connect to ldap server due to: err=%v", err)
+		return NewLDAPError("couldn't connect to ldap server", err)
 	}
 	var userDN string
 	if userDN, err = lc.getUserDN(username); err != nil {
-		return fmt.Errorf("failed to retrieve user dn due to: err=%v", err)
+		return NewLDAPError("failed to retrieve user dn", err)
 	}
 
 	// bind as the user to verify their current password
 	if err = lc.Conn.Bind(userDN, oldPassword); err != nil {
-		return fmt.Errorf("could not bind user via old password: %w", err)
+		return NewLDAPError("could not bind user via old password", err)
 	}
 
 	modify := ldap.NewModifyRequest(userDN)
 	modify.Replace(openLdapPasswordAttributeName, []string{newPassword})
 	if err = lc.Conn.Modify(modify); err != nil {
-		return fmt.Errorf("password could not be changed: %w", err)
+		return NewLDAPError("password could not be changed", err)
 	}
 
 	// bind as the user to verify their new password
 	if err = lc.Conn.Bind(userDN, newPassword); err != nil {
-		return fmt.Errorf("could not bind user via new password: %w", err)
+		return NewLDAPError("could not bind user via new password", err)
 	}
 
 	return nil
@@ -326,13 +325,13 @@ func (lc *LDAPClient) ChangeOpenLDAPUserPassword(username, oldPassword, newPassw
 func (lc *LDAPClient) getUserDN(username string) (string, error) {
 	var err error
 	if err = lc.Connect(); err != nil {
-		return "", fmt.Errorf("couldn't connect to ldap server due to: err=%v", err)
+		return "", NewLDAPError("dn retrieval failed - couldn't connect to ldap server", err)
 	}
 
 	// first bind with a read only user
 	if lc.BindDN != "" && lc.BindPassword != "" {
 		if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
-			return "", fmt.Errorf("could not bind read only user: %w", err)
+			return "", NewLDAPError("dn retrieval failed - could not bind read only user", err)
 		}
 	}
 
@@ -348,7 +347,7 @@ func (lc *LDAPClient) getUserDN(username string) (string, error) {
 
 	var searchResult *ldap.SearchResult
 	if searchResult, err = lc.Conn.Search(searchRequest); err != nil {
-		return "", fmt.Errorf("wasn't able to find user dn in ldap due to: err=%v", err)
+		return "", NewLDAPError("wasn't able to find user dn in ldap", err)
 	}
 
 	if len(searchResult.Entries) < 1 {
