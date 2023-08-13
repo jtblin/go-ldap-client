@@ -5,6 +5,7 @@ package ldap
 import (
 	"crypto/tls"
 	"fmt"
+	"strings"
 	"golang.org/x/text/encoding/unicode"
 	"gopkg.in/ldap.v2"
 )
@@ -43,6 +44,7 @@ type LDAPClient struct {
 type LdapGroup struct {
 	Name              string
 	DistinguishedName string
+	Members			  []string
 }
 
 // Connect connects to the ldap backend.
@@ -254,6 +256,50 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 	return groups, nil
 }
 
+// GetAllGroupsWithMembersByName returns list of groups matching a name.
+func (lc *LDAPClient) GetAllGroupsWithMembersByName(groupsDN string, groupCN []string) ([]*LdapGroup, error) {
+	err := lc.Connect()
+	if err != nil {
+		return nil, err
+	}
+
+	dn := lc.BindDN
+	if groupsDN != "" {
+		dn = groupsDN
+	}
+	// First bind with a read only user
+	if dn != "" && lc.BindPassword != "" {
+		if err = lc.Conn.Bind(dn, lc.BindPassword); err != nil {
+			return nil, nil
+		}
+	}
+
+	searchFilter := fmt.Sprintf("(|%s)", strings.Join(groupCN, ""))
+
+	searchRequest := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		searchFilter,
+		[]string{"cn", "member", "memberUid"},
+		nil,
+	)
+
+	sr, err := lc.Conn.Search(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+	var groups []*LdapGroup
+	for _, entry := range sr.Entries {
+		group := LdapGroup{
+			Name:              entry.GetAttributeValue("cn"),
+			DistinguishedName: entry.DN,
+			Members:     entry.GetAttributeValues("member"),
+		}
+		
+		groups = append(groups, &group)
+	}
+	return groups, nil
+}
 // ChangeADUserPassword changes user's password in Active Directory
 func (lc *LDAPClient) ChangeADUserPassword(username, oldPassword, newPassword string) (err error) {
 	if err = lc.Connect(); err != nil {
