@@ -265,10 +265,8 @@ func (lc *LDAPClient) GetAllGroupsWithMembersByName(groupCN []string) ([]*LdapGr
 
 	dn := lc.BindDN
 	// First bind with a read only user
-	if dn != "" && lc.BindPassword != "" {
-		if err = lc.Conn.Bind(dn, lc.BindPassword); err != nil {
-			return nil, err
-		}
+	if err = lc.Conn.Bind(dn, lc.BindPassword); err != nil {
+		return nil, err
 	}
 
 	orFilters := []string{}
