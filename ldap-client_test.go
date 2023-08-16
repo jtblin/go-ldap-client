@@ -4,25 +4,26 @@ import (
 	"log"
 	"testing"
 )
-
+//tested with this LDAP: https://github.com/rroemhild/docker-test-openldap
 func Test_LDAPClient(t *testing.T) {
+
 	t.Run("Authenticate", func(t *testing.T) {
 		client := &LDAPClient{
-			Base:         "dc=example,dc=com",
-			Host:         "ldap.example.com",
-			Port:         389,
+			Base:         "dc=planetexpress,dc=com",
+			Host:         "localhost",
+			Port:         10389,
 			UseSSL:       false,
-			BindDN:       "uid=readonlysuer,ou=People,dc=example,dc=com",
-			BindPassword: "readonlypassword",
+			BindDN:       "cn=admin,dc=planetexpress,dc=com",
+			BindPassword: "GoodNewsEveryone",
 			UserFilter:   "(uid=%s)",
 			GroupFilter:  "(memberUid=%s)",
 			Attributes:   []string{"givenName", "sn", "mail", "uid"},
 		}
 		defer client.Close()
 
-		ok, user, err := client.Authenticate("username", "password")
+		ok, user, err := client.Authenticate("professor", "professor")
 		if err != nil {
-			log.Fatalf("Error authenticating user %s: %+v", "username", err)
+			log.Fatalf("Error authenticating user %s: %+v", "professor", err)
 		}
 		if !ok {
 			log.Fatalf("Authenticating failed for user %s", "username")
@@ -32,30 +33,49 @@ func Test_LDAPClient(t *testing.T) {
 
 	t.Run("GetGroupsOfUser", func(t *testing.T) {
 		client := &LDAPClient{
-			Base:        "dc=example,dc=com",
-			Host:        "ldap.example.com",
-			Port:        389,
+			Base:        "dc=planetexpress,dc=com",
+			Host:        "localhost",
+			Port:        10389,
 			GroupFilter: "(memberUid=%s)",
+			UseSSL:       false,
 		}
 		defer client.Close()
-		groups, err := client.GetGroupsOfUser("username")
+		groups, err := client.GetGroupsOfUser("fry")
 		if err != nil {
-			log.Fatalf("Error getting groups for user %s: %+v", "username", err)
+			log.Fatalf("Error getting groups for user %s: %+v", "fry", err)
+		}
+		log.Printf("Groups: %+v", groups)
+	})
+
+	t.Run("GetAllGroupsWithMembersByName-Get all external groups for ldap with their members", func(t *testing.T) {
+		client := &LDAPClient{
+			Base:        "dc=planetexpress,dc=com",
+			Host:        "localhost",
+			Port:        10389,
+			UseSSL:       false,
+			GroupFilter: "(memberUid=%s)",
+			InsecureSkipVerify:false,
+		}
+		defer client.Close()
+		groups, err := client.GetAllGroupsWithMembersByName([]string{""})
+		if err != nil {
+			log.Fatalf("Error getting all groups%+v", err)
 		}
 		log.Printf("Groups: %+v", groups)
 	})
 
 	t.Run("RunQueries", func(t *testing.T) {
 		client := &LDAPClient{
-			Base:         "ou=People,dc=planetexpress,dc=com",
-			Host:         "localhost",
-			Port:         389,
+			Base:        "dc=planetexpress,dc=com",
+			Host:        "localhost",
+			Port:        10389,
 			UseSSL:       false,
 			BindDN:       "cn=admin,dc=planetexpress,dc=com",
 			BindPassword: "GoodNewsEveryone",
 			UserFilter:   "(uid=%s)",
 			GroupFilter:  "(memberUid=%s)",
 			Attributes:   []string{"givenName", "sn", "mail", "uid"},
+			InsecureSkipVerify:false,
 		}
 		defer client.Close()
 
@@ -80,19 +100,19 @@ func Test_LDAPClient(t *testing.T) {
 
 	t.Run("GetAllGroupsByName", func(t *testing.T) {
 		client := &LDAPClient{
-			Base:         "ou=People,dc=planetexpress,dc=com",
-			Host:         "127.0.0.1",
-			Port:         389,
+			Base:        "dc=planetexpress,dc=com",
+			Host:        "localhost",
+			Port:        10389,
 			UseSSL:       false,
 			BindDN:       "cn=admin,dc=planetexpress,dc=com",
 			BindPassword: "GoodNewsEveryone",
 			UserFilter:   "(uid=%s)",
 			GroupFilter:  "(memberUid=%s)",
-			Attributes:   []string{"givenName", "sn", "mail", "uid"},
+			Attributes:   []string{"cn", "member", "memberUid"},
 		}
 		defer client.Close()
 
-		results, err := client.GetAllGroupsByName("ship_crew")
+		results, err := client.GetAllGroupsByName("_")
 		if err != nil {
 			log.Fatalf("Error getting all groups  matching to %s, %v", "ship_crew", err)
 		}
@@ -117,7 +137,7 @@ func Test_LDAPClient(t *testing.T) {
 		defer client.Close()
 
 		oldPassword, newPassword := "Aa123456#", "Vv123456#"
-		err := client.ChangeUserPassword("mike-t", oldPassword, newPassword)
+		err := client.ChangeADUserPassword("mike-t", oldPassword, newPassword)
 		if err != nil {
 			log.Fatalf("Error changing user password from %s to %s, %v", oldPassword, newPassword, err)
 		}
