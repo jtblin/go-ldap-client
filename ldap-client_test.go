@@ -45,7 +45,7 @@ func Test_LDAPClient(t *testing.T) {
 		log.Printf("Groups: %+v", groups)
 	})
 
-	t.Run("GetAllGroupsWithMembersByName", func(t *testing.T) {
+	t.Run("GetAllGroupsWithMembersByName-Get all external groups for ldap with their members", func(t *testing.T) {
 		client := &LDAPClient{
 			Base:        "dc=example,dc=com",
 			Host:        "ldap.example.com",

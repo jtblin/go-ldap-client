@@ -256,25 +256,31 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 	return groups, nil
 }
 
-// GetAllGroupsWithMembersByName returns list of groups matching a name.
-func (lc *LDAPClient) GetAllGroupsWithMembersByName(groupsDN string, groupCN []string) ([]*LdapGroup, error) {
+// GetAllGroupsWithMembersByName returns a list of groups with selected config matching a name. members are included in result
+func (lc *LDAPClient) GetAllGroupsWithMembersByName(groupCN []string) ([]*LdapGroup, error) {
 	err := lc.Connect()
 	if err != nil {
 		return nil, err
 	}
 
 	dn := lc.BindDN
-	if groupsDN != "" {
-		dn = groupsDN
-	}
 	// First bind with a read only user
 	if dn != "" && lc.BindPassword != "" {
 		if err = lc.Conn.Bind(dn, lc.BindPassword); err != nil {
-			return nil, nil
+			return nil, err
 		}
 	}
 
-	searchFilter := fmt.Sprintf("(|%s)", strings.Join(groupCN, ""))
+	orFilters := []string{}
+	searchRequestStr := "(&(objectClass=Group)%s)"
+	for _, group := range groupCN {
+		if group == "" {
+			orFilters = append(orFilters, fmt.Sprintf(searchRequestStr, ""))
+		} else {
+			orFilters = append(orFilters, fmt.Sprintf(searchRequestStr, fmt.Sprintf("(cn=%s)", group)))
+		}
+	}
+	searchFilter := fmt.Sprintf("(|%s)", strings.Join(orFilters, ""))
 
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
