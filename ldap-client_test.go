@@ -98,7 +98,7 @@ func Test_LDAPClient(t *testing.T) {
 		log.Printf("found: %+v", results)
 	})
 
-	t.Run("GetAllGroupsByName", func(t *testing.T) {
+	t.Run("GetAllGroupsWithMembersByDN", func(t *testing.T) {
 		client := &LDAPClient{
 			Base:        "dc=planetexpress,dc=com",
 			Host:        "localhost",
@@ -112,7 +112,7 @@ func Test_LDAPClient(t *testing.T) {
 		}
 		defer client.Close()
 
-		results, err := client.GetAllGroupsByName("_")
+		results, err := client.GetAllGroupsWithMembersByDN([]string{"cn=admin_staff,ou=people,dc=planetexpress,dc=com"})
 		if err != nil {
 			log.Fatalf("Error getting all groups  matching to %s, %v", "ship_crew", err)
 		}
