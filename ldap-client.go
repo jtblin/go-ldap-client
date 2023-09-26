@@ -38,6 +38,7 @@ type LDAPClient struct {
 	UseSSL             bool
 	SkipTLS            bool
 	ClientCertificates []tls.Certificate // Adding client certificates
+	GroupsDN           string
 }
 
 type LdapGroup struct {
@@ -273,7 +274,7 @@ func (lc *LDAPClient) GetAllGroupsWithMembersByDN(groupDN []string) ([]*LdapGrou
 	groups:= make([]*LdapGroup,0)
 	if len(groupDN) == 0 {
 		searchRequest = ldap.NewSearchRequest(
-			lc.Base,
+			lc.GroupsDN,
 			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 			"(&(objectClass=Group))",
 			[]string{"cn", "member", "memberUid"},
