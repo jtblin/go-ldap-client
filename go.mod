@@ -1,6 +1,6 @@
 module github.com/cyolosecurity/go-ldap-client
 
-go 1.14
+go 1.21
 
 require (
 	github.com/jtblin/go-ldap-client v0.0.0-20170223121919-b73f66626b33
