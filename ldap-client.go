@@ -154,6 +154,53 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 	return true, user, nil
 }
 
+// UsersSearch Retrieves users from the provided list and returns them with attributes.
+func (lc *LDAPClient) UsersSearch(orFilter string) (bool, map[string]map[string][]string, error) {
+	err := lc.Connect()
+	if err != nil {
+		return false, nil, err
+	}
+
+	// First bind with a read only user
+	if lc.BindDN != "" && lc.BindPassword != "" {
+		err := lc.Conn.Bind(lc.BindDN, lc.BindPassword)
+		if err != nil {
+			return false, nil, err
+		}
+	}
+
+	attributes := append(lc.Attributes,"uid")
+	// Search for the given username
+	searchRequest := ldap.NewSearchRequest(
+		lc.Base,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		orFilter,
+		attributes,
+		nil,
+	)
+
+	searchResult, err := lc.Conn.Search(searchRequest)
+	if err != nil {
+		return false, nil, err
+	}
+
+	if len(searchResult.Entries) < 1 {
+		return false, nil, errUserNotExist
+	}
+
+	users:=map[string]map[string][]string{}
+	for _, entry := range searchResult.Entries {
+		user := map[string][]string{}
+		for _, attr := range attributes {
+			val := entry.GetAttributeValues(attr)
+			if len(val) > 0{
+				user[attr] = val
+			}
+		}
+		users[entry.GetAttributeValue("uid")] = user
+	}
+	return true, users, nil
+}
 // RunQueries runs the given ldap queries against the ldap backend and returns the matched queries.
 func (lc *LDAPClient) RunQueries(username string, queries []string) (results map[string]bool, err error) {
 	if err = lc.Connect(); err != nil {
