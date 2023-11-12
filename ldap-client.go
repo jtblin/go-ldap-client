@@ -22,7 +22,19 @@ var (
 	// errUserNotIdentified represents a situation in which the user could not be identified.
 	errUserNotIdentified = fmt.Errorf("user could not be indentifed")
 )
-
+type LDAPClienter interface{
+	Connect() error
+	Bind(dn,password string) error
+	Close()
+	UsersSearch(orFilter string,uidAttr string) (bool, map[string]map[string][]string, error)
+	RunQueries(username string, queries []string) (results map[string]bool, err error)
+	GetAllGroupsByName(groupName string) ([]*LdapGroup, error)
+	GetAllGroupsWithMembersByDN(groupDN []string) ([]*LdapGroup, error)
+	ChangeADUserPassword(username, oldPassword, newPassword string) (err error)
+    ChangeOpenLDAPUserPassword(username, oldPassword, newPassword string) (err error)
+	GetUserByCN(userCN ,uidAttr string)(uid string, err error)
+	Authenticate(username string, password string) (bool, map[string][]string, error)
+}
 type LDAPClient struct {
 	Attributes         []string
 	Base               string
@@ -85,6 +97,12 @@ func (lc *LDAPClient) Connect() error {
 	return nil
 }
 
+func (lc *LDAPClient) Bind(dn,password string) error {
+	if err := lc.Conn.Bind(dn,password); err != nil {
+		return fmt.Errorf("LDAP: cannot bind to server: invalid credentials or bad DN")
+	}
+	return nil
+}
 // Close closes the ldap backend connection.
 func (lc *LDAPClient) Close() {
 	if lc.Conn != nil {
@@ -155,7 +173,7 @@ func (lc *LDAPClient) Authenticate(username, password string) (bool, map[string]
 }
 
 // UsersSearch Retrieves users from the provided list and returns them with attributes.
-func (lc *LDAPClient) UsersSearch(orFilter string) (bool, map[string]map[string][]string, error) {
+func (lc *LDAPClient) UsersSearch(orFilter string,uidAttr string) (bool, map[string]map[string][]string, error) {
 	err := lc.Connect()
 	if err != nil {
 		return false, nil, err
@@ -169,7 +187,7 @@ func (lc *LDAPClient) UsersSearch(orFilter string) (bool, map[string]map[string]
 		}
 	}
 
-	attributes := append(lc.Attributes,"uid")
+	attributes := append(lc.Attributes,uidAttr)
 	// Search for the given username
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
@@ -197,7 +215,7 @@ func (lc *LDAPClient) UsersSearch(orFilter string) (bool, map[string]map[string]
 				user[attr] = val
 			}
 		}
-		users[entry.GetAttributeValue("uid")] = user
+		users[entry.GetAttributeValue(uidAttr)] = user
 	}
 	return true, users, nil
 }
@@ -267,7 +285,7 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 }
 
 // GetAllGroupsByName returns list of groups matching a name.
-func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) {
+func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]*LdapGroup, error) {
 	err := lc.Connect()
 	if err != nil {
 		return nil, err
@@ -292,9 +310,9 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]LdapGroup, error) 
 	if err != nil {
 		return nil, err
 	}
-	var groups []LdapGroup
+	var groups []*LdapGroup
 	for _, entry := range sr.Entries {
-		group := LdapGroup{
+		group := &LdapGroup{
 			Name:              entry.GetAttributeValue("cn"),
 			DistinguishedName: entry.DN,
 		}
@@ -436,6 +454,27 @@ func (lc *LDAPClient) ChangeOpenLDAPUserPassword(username, oldPassword, newPassw
 	}
 
 	return nil
+}
+
+func (lc *LDAPClient) GetUserByCN(userCN,uidAttr string)(uid string, err error){
+	searchRequest := ldap.NewSearchRequest(
+		userCN,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		"(objectClass=*)",
+		[]string{"cn", uidAttr},
+		nil,
+	)
+
+	sr, err := lc.Conn.Search(searchRequest)
+	if err != nil {
+		return "", err
+	}
+	if len(sr.Entries) != 1 {
+		return "", nil
+	}
+	userEntry := sr.Entries[0]
+	uid = userEntry.GetAttributeValue(uidAttr)
+	return  uid,nil
 }
 
 func (lc *LDAPClient) getUserDN(username string) (string, error) {
