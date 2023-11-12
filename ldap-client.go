@@ -5,6 +5,7 @@ package ldap
 import (
 	"crypto/tls"
 	"fmt"
+	"errors"
 	"golang.org/x/text/encoding/unicode"
 	"gopkg.in/ldap.v2"
 )
