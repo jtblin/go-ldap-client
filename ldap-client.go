@@ -22,7 +22,7 @@ var (
 	// errUserNotIdentified represents a situation in which the user could not be identified.
 	errUserNotIdentified = fmt.Errorf("user could not be indentifed")
 )
-type LDAPClienter interface{
+type LDAPClienter interface {
 	Connect() error
 	Bind(dn,password string) error
 	Close()
@@ -99,7 +99,7 @@ func (lc *LDAPClient) Connect() error {
 
 func (lc *LDAPClient) Bind(dn,password string) error {
 	if err := lc.Conn.Bind(dn,password); err != nil {
-		return fmt.Errorf("LDAP: cannot bind to server: invalid credentials or bad DN")
+		return fmt.Errorf("LDAP: cannot bind to server: invalid credentials or bad DN %v",err)
 	}
 	return nil
 }
@@ -456,7 +456,7 @@ func (lc *LDAPClient) ChangeOpenLDAPUserPassword(username, oldPassword, newPassw
 	return nil
 }
 
-func (lc *LDAPClient) GetUserByCN(userCN,uidAttr string)(uid string, err error){
+func (lc *LDAPClient) GetUserByCN(userCN, uidAttr string)(uid string, err error){
 	searchRequest := ldap.NewSearchRequest(
 		userCN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
@@ -470,7 +470,7 @@ func (lc *LDAPClient) GetUserByCN(userCN,uidAttr string)(uid string, err error){
 		return "", err
 	}
 	if len(sr.Entries) != 1 {
-		return "", nil
+		return "", errors.New("found mor that one user")
 	}
 	userEntry := sr.Entries[0]
 	uid = userEntry.GetAttributeValue(uidAttr)
