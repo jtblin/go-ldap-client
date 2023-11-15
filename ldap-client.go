@@ -465,7 +465,12 @@ func (lc *LDAPClient) GetUserByCN(userCN, uidAttr string)(uid string, err error)
 		[]string{"cn", uidAttr},
 		nil,
 	)
-
+	// first bind with a read only user
+	if lc.BindDN != "" && lc.BindPassword != "" {
+		if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
+			return "", NewLDAPError("dn retrieval failed - could not bind read only user", err)
+		}
+	}
 	sr, err := lc.Conn.Search(searchRequest)
 	if err != nil {
 		return "", err
