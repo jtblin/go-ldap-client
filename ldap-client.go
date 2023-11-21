@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"errors"
+	"strings"
 	"golang.org/x/text/encoding/unicode"
 	"gopkg.in/ldap.v2"
 )
@@ -306,12 +307,16 @@ func (lc *LDAPClient) GetAllGroupsByName(groupName string) ([]*LdapGroup, error)
 		[]string{"cn"},
 		nil,
 	)
-
+	var groups []*LdapGroup
 	sr, err := lc.Conn.Search(searchRequest)
-	if err != nil {
+	if err != nil{
+		// don't return error when result is no object
+		if isNoObjectError(err){
+			return groups,nil
+		}
 		return nil, err
 	}
-	var groups []*LdapGroup
+
 	for _, entry := range sr.Entries {
 		group := &LdapGroup{
 			Name:              entry.GetAttributeValue("cn"),
@@ -348,7 +353,11 @@ func (lc *LDAPClient) GetAllGroupsWithMembersByDN(groupDN []string) ([]*LdapGrou
 		)
 
 		searchResult, err = lc.Conn.Search(searchRequest)
-		if err != nil {
+		if err != nil{
+			// don't return error when result is no object
+			if isNoObjectError(err){
+				return groups,nil
+			}
 			return nil, err
 		}
 		for _, entry := range searchResult.Entries {
@@ -372,7 +381,11 @@ func (lc *LDAPClient) GetAllGroupsWithMembersByDN(groupDN []string) ([]*LdapGrou
 			)
 
 			searchResult, err = lc.Conn.Search(searchRequest)
-			if err != nil {
+			if err != nil{
+				// don't return error when result is no object
+				if isNoObjectError(err){
+					return groups,nil
+				}
 				return nil, err
 			}
 			for _, entry := range searchResult.Entries {
@@ -529,4 +542,8 @@ func (lc *LDAPClient) encodePasswordForAD(pass string) (encoded string, err erro
 		err = fmt.Errorf("password could not be utf16 encoded: %w", err)
 	}
 	return
+}
+
+func isNoObjectError(err error) bool{
+   return strings.Contains(err.Error(),"problem 2001 (NO_OBJECT)")
 }
