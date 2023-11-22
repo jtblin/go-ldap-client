@@ -413,8 +413,15 @@ func (lc *LDAPClient) ChangeADUserPassword(username, oldPassword, newPassword st
 	}
 
 	// bind as the user to verify their current password
-	if err = lc.Conn.Bind(userDN, oldPassword); err != nil {
-		return NewLDAPError("could not bind user via old password", err)
+	err = lc.Conn.Bind(userDN, oldPassword)
+	if err != nil {
+		if !isErrUserMustResetPassword(err) {
+			return NewLDAPError("could not bind user via old password", err)
+		}
+		// in case we got a "user must reset password" error in binding, we bind the connection as the admin.
+		if err = lc.Conn.Bind(lc.BindDN, lc.BindPassword); err != nil {
+			return NewLDAPError("could not bind as admin", err)
+		}
 	}
 
 	var oldEncodedPass, newEncodedPass string
@@ -546,4 +553,8 @@ func (lc *LDAPClient) encodePasswordForAD(pass string) (encoded string, err erro
 
 func isNoObjectError(err error) bool{
    return strings.Contains(err.Error(),"problem 2001 (NO_OBJECT)")
+}
+
+func isErrUserMustResetPassword(err error) bool {
+	return ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) && strings.Contains(err.Error(), "data 773")
 }
