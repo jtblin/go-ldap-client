@@ -1,6 +1,6 @@
 module github.com/jtblin/go-ldap-client
 
-go 1.21
+go 1.24.0
 
 require github.com/go-ldap/ldap/v3 v3.4.13
 
