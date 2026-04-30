@@ -14,7 +14,7 @@ test:
 $(GOLANGCI_LINT):
 	@echo "Installing golangci-lint..."
 	@mkdir -p $(BIN_DIR)
-	@GOBIN=$(BIN_DIR) go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.6
+	@GOBIN=$(BIN_DIR) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
 
 setup: $(GOLANGCI_LINT)
 	@echo "Local dev environment setup complete."
