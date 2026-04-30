@@ -1,1 +1,13 @@
-test.sh
+# Binaries and tools
+/bin/
+
+# Testing
+*.test
+*.out
+coverage.out
+
+# Dependencies
+/vendor/
+
+# OS specific
+.DS_Store

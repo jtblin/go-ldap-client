@@ -1,14 +1,16 @@
 package ldap_test
 
 import (
+	"context"
 	"log"
+	"time"
 
 	"github.com/jtblin/go-ldap-client"
 )
 
-// ExampleLDAPClient_Authenticate shows how a typical application can verify a login attempt
-func ExampleLDAPClient_Authenticate() {
-	client := &ldap.LDAPClient{
+// ExampleClient_Authenticate shows how a typical application can verify a login attempt
+func ExampleClient_Authenticate() {
+	client := &ldap.Client{
 		Base:         "dc=example,dc=com",
 		Host:         "ldap.example.com",
 		Port:         389,
@@ -23,18 +25,49 @@ func ExampleLDAPClient_Authenticate() {
 
 	ok, user, err := client.Authenticate("username", "password")
 	if err != nil {
-		log.Fatalf("Error authenticating user %s: %+v", "username", err)
+		log.Printf("Error authenticating user %s: %+v", "username", err)
+		return
 	}
 	if !ok {
-		log.Fatalf("Authenticating failed for user %s", "username")
+		log.Printf("Authenticating failed for user %s", "username")
+		return
 	}
 	log.Printf("User: %+v", user)
-
 }
 
-// ExampleLDAPClient_GetGroupsOfUser shows how to retrieve user groups
-func ExampleLDAPClient_GetGroupsOfUser() {
-	client := &ldap.LDAPClient{
+// ExampleClient_AuthenticateContext shows how to use the context-aware Authenticate method
+func ExampleClient_AuthenticateContext() {
+	client := &ldap.Client{
+		Base:         "dc=example,dc=com",
+		Host:         "ldap.example.com",
+		Port:         389,
+		UseSSL:       false,
+		BindDN:       "uid=readonlysuer,ou=People,dc=example,dc=com",
+		BindPassword: "readonlypassword",
+		UserFilter:   "(uid=%s)",
+		GroupFilter:  "(memberUid=%s)",
+		Attributes:   []string{"givenName", "sn", "mail", "uid"},
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ok, user, err := client.AuthenticateContext(ctx, "username", "password")
+	if err != nil {
+		log.Printf("Error authenticating user %s: %+v", "username", err)
+		return
+	}
+	if !ok {
+		log.Printf("Authenticating failed for user %s", "username")
+		return
+	}
+	log.Printf("User: %+v", user)
+}
+
+// ExampleClient_GetGroupsOfUser shows how to retrieve user groups
+func ExampleClient_GetGroupsOfUser() {
+	client := &ldap.Client{
 		Base:        "dc=example,dc=com",
 		Host:        "ldap.example.com",
 		Port:        389,
@@ -43,7 +76,8 @@ func ExampleLDAPClient_GetGroupsOfUser() {
 	defer client.Close()
 	groups, err := client.GetGroupsOfUser("username")
 	if err != nil {
-		log.Fatalf("Error getting groups for user %s: %+v", "username", err)
+		log.Printf("Error getting groups for user %s: %+v", "username", err)
+		return
 	}
 	log.Printf("Groups: %+v", groups)
 }
