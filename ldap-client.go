@@ -220,6 +220,14 @@ func (lc *Client) GetGroupsOfUserContext(ctx context.Context, username string) (
 		return nil, err
 	}
 
+	// First bind with a read only user
+	if lc.BindDN != "" && lc.BindPassword != "" {
+		err = lc.Conn.Bind(lc.BindDN, lc.BindPassword)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
