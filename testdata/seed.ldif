@@ -1,0 +1,26 @@
+dn: ou=people,dc=example,dc=org
+objectClass: organizationalUnit
+ou: people
+
+dn: cn=john,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: john
+sn: Doe
+uid: john
+uidNumber: 1000
+gidNumber: 1000
+homeDirectory: /home/john
+userPassword: password
+mail: john@example.org
+
+dn: ou=groups,dc=example,dc=org
+objectClass: organizationalUnit
+ou: groups
+
+dn: cn=admins,ou=groups,dc=example,dc=org
+objectClass: posixGroup
+cn: admins
+gidNumber: 1001
+memberUid: john

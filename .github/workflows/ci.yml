@@ -41,8 +41,16 @@ jobs:
       - name: Build
         run: go build -v ./...
 
-      - name: Test
-        run: go test -v -coverprofile=coverage.out ./...
+      - name: Unit Test
+        run: go test -v -coverprofile=unit_coverage.out ./...
+
+      - name: Integration Test
+        run: go test -v -tags=integration -coverprofile=integration_coverage.out ./...
+
+      - name: Merge Coverage
+        run: |
+          cat unit_coverage.out > coverage.out
+          grep -v "mode: set" integration_coverage.out >> coverage.out
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
