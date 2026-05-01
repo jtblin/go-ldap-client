@@ -109,6 +109,24 @@ client := &ldap.Client{
 }
 ```
 
+### Active Directory Configuration
+
+For Active Directory, you typically need to use the user's `sAMAccountName` for searching and the full `DN` for group membership checks:
+
+```go
+client := &ldap.Client{
+    Base:         "dc=example,dc=org",
+    Host:         "ad.example.org",
+    Port:         389,
+    BindDN:       "cn=readonly,ou=ServiceAccounts,dc=example,dc=org",
+    BindPassword: "password",
+    UserFilter:   "(sAMAccountName=%s)",
+    // In v2.0.0+, the GroupFilter %s is automatically populated with the user's full DN
+    GroupFilter:  "(member=%s)", 
+    Attributes:   []string{"sAMAccountName", "mail", "cn"},
+}
+```
+
 ## Documentation
 
 Full documentation can be found on [pkg.go.dev](https://pkg.go.dev/github.com/jtblin/go-ldap-client).
