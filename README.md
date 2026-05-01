@@ -130,7 +130,7 @@ client := &ldap.Client{
 
 ## Documentation
 
-Full documentation can be found on [pkg.go.dev](https://pkg.go.dev/github.com/jtblin/go-ldap-client).
+Full documentation can be found on [pkg.go.dev](https://pkg.go.dev/github.com/jtblin/go-ldap-client/v2).
 
 ## License
 
