@@ -14,7 +14,7 @@ Simple LDAP client for Go to authenticate users, retrieve basic information, and
 ## Installation
 
 ```bash
-go get github.com/jtblin/go-ldap-client
+go get github.com/jtblin/go-ldap-client/v2
 ```
 
 ## Usage
@@ -27,7 +27,7 @@ package main
 import (
 	"log"
 
-	"github.com/jtblin/go-ldap-client"
+	"github.com/jtblin/go-ldap-client/v2"
 )
 
 func main() {
@@ -45,16 +45,19 @@ func main() {
 	// It is the responsibility of the caller to close the connection
 	defer client.Close()
 
-	ok, user, err := client.Authenticate("username", "password")
+	ctx := context.Background()
+	ok, user, err := client.Authenticate(ctx, "username", "password")
 	if err != nil {
 		log.Fatalf("Error authenticating user %s: %+v", "username", err)
 	}
 	if !ok {
 		log.Fatalf("Authenticating failed for user %s", "username")
 	}
-	log.Printf("User: %+v", user)
+	// User struct contains DN and Attributes
+	log.Printf("User DN: %s", user.DN)
+	log.Printf("User Attributes: %+v", user.Attributes)
 	
-	groups, err := client.GetGroupsOfUser("username")
+	groups, err := client.GetGroupsOfUser(ctx, "username")
 	if err != nil {
 		log.Fatalf("Error getting groups for user %s: %+v", "username", err)
 	}
@@ -63,6 +66,8 @@ func main() {
 ```
 
 ### Context Support & Multiple Hosts
+
+All methods in v2.0.0+ require a `context.Context` as the first argument.
 
 ```go
 client := &ldap.Client{
@@ -77,7 +82,19 @@ client := &ldap.Client{
 ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 defer cancel()
 
-ok, user, err := client.AuthenticateContext(ctx, "username", "password")
+ok, user, err := client.Authenticate(ctx, "username", "password")
+```
+
+### Getting User Information (Search without password)
+
+If you only need to retrieve user information or their DN without verifying a password:
+
+```go
+user, err := client.GetUser(ctx, "username")
+if err != nil {
+    log.Fatal(err)
+}
+log.Printf("Found DN: %s", user.DN)
 ```
 
 ### Custom TLS Configuration

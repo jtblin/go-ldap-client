@@ -12,6 +12,14 @@ import (
 	"github.com/go-ldap/ldap/v3"
 )
 
+// User represents an LDAP user entry.
+type User struct {
+	// DN is the Distinguished Name of the user.
+	DN string
+	// Attributes is a map of attributes retrieved for the user.
+	Attributes map[string][]string
+}
+
 // Conn is an interface for the LDAP connection to allow mocking.
 type Conn interface {
 	Bind(username, password string) error
@@ -58,12 +66,7 @@ type Client struct {
 }
 
 // Connect connects to the ldap backend.
-func (lc *Client) Connect() error {
-	return lc.ConnectContext(context.Background())
-}
-
-// ConnectContext connects to the ldap backend with context.
-func (lc *Client) ConnectContext(ctx context.Context) error {
+func (lc *Client) Connect(ctx context.Context) error {
 	if lc.Conn != nil {
 		return nil
 	}
@@ -136,33 +139,25 @@ func (lc *Client) Close() {
 	}
 }
 
-// Authenticate authenticates the user against the ldap backend.
-func (lc *Client) Authenticate(username, password string) (ok bool, user map[string][]string, err error) {
-	return lc.AuthenticateContext(context.Background(), username, password)
-}
-
-// AuthenticateContext authenticates the user against the ldap backend with context.
-func (lc *Client) AuthenticateContext(ctx context.Context, username, password string) (ok bool, user map[string][]string, err error) {
-	if password == "" {
-		return false, nil, errors.New("authentication failed: empty password")
-	}
-
-	err = lc.ConnectContext(ctx)
+// GetUser searches for the given username and returns their attributes and DN.
+func (lc *Client) GetUser(ctx context.Context, username string) (*User, error) {
+	err := lc.Connect(ctx)
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
 
 	// First bind with a read only user
 	if lc.BindDN != "" && lc.BindPassword != "" {
 		err = lc.Conn.Bind(lc.BindDN, lc.BindPassword)
 		if err != nil {
-			return false, nil, err
+			return nil, err
 		}
 	}
 
 	attributes := make([]string, 0, len(lc.Attributes)+1)
 	attributes = append(attributes, lc.Attributes...)
 	attributes = append(attributes, "dn")
+
 	// Search for the given username
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
@@ -174,25 +169,42 @@ func (lc *Client) AuthenticateContext(ctx context.Context, username, password st
 
 	sr, err := lc.Conn.Search(searchRequest)
 	if err != nil {
-		return false, nil, err
+		return nil, err
 	}
 
 	if len(sr.Entries) < 1 {
-		return false, nil, errors.New("user does not exist")
+		return nil, errors.New("user does not exist")
 	}
 
 	if len(sr.Entries) > 1 {
-		return false, nil, errors.New("too many entries returned")
+		return nil, errors.New("too many entries returned")
 	}
 
-	userDN := sr.Entries[0].DN
-	user = map[string][]string{}
+	user := &User{
+		DN:         sr.Entries[0].DN,
+		Attributes: map[string][]string{},
+	}
+
 	for _, attr := range lc.Attributes {
-		user[attr] = sr.Entries[0].GetAttributeValues(attr)
+		user.Attributes[attr] = sr.Entries[0].GetAttributeValues(attr)
+	}
+
+	return user, nil
+}
+
+// Authenticate authenticates the user against the ldap backend.
+func (lc *Client) Authenticate(ctx context.Context, username, password string) (bool, *User, error) {
+	if password == "" {
+		return false, nil, errors.New("authentication failed: empty password")
+	}
+
+	user, err := lc.GetUser(ctx, username)
+	if err != nil {
+		return false, nil, err
 	}
 
 	// Bind as the user to verify their password
-	err = lc.Conn.Bind(userDN, password)
+	err = lc.Conn.Bind(user.DN, password)
 	if err != nil {
 		return false, user, err
 	}
@@ -209,13 +221,8 @@ func (lc *Client) AuthenticateContext(ctx context.Context, username, password st
 }
 
 // GetGroupsOfUser returns the group for a user.
-func (lc *Client) GetGroupsOfUser(username string) ([]string, error) {
-	return lc.GetGroupsOfUserContext(context.Background(), username)
-}
-
-// GetGroupsOfUserContext returns the group for a user with context.
-func (lc *Client) GetGroupsOfUserContext(ctx context.Context, username string) ([]string, error) {
-	err := lc.ConnectContext(ctx)
+func (lc *Client) GetGroupsOfUser(ctx context.Context, username string) ([]string, error) {
+	err := lc.Connect(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +239,7 @@ func (lc *Client) GetGroupsOfUserContext(ctx context.Context, username string) (
 		lc.Base,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		fmt.Sprintf(lc.GroupFilter, username),
-		[]string{"cn"}, // can it be something else than "cn"?
+		[]string{"cn"},
 		nil,
 	)
 	sr, err := lc.Conn.Search(searchRequest)

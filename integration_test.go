@@ -72,29 +72,30 @@ func TestIntegration(t *testing.T) {
 
 	// Test Authentication
 	t.Run("Authenticate", func(t *testing.T) {
-		ok, user, err := client.Authenticate("john", "password")
+		ok, user, err := client.Authenticate(ctx, "john", "password")
 		require.NoError(t, err)
 		require.True(t, ok, "authentication should have succeeded")
-		
-		assert.Equal(t, "john", user["uid"][0])
-		assert.Equal(t, "john@example.org", user["mail"][0])
+
+		assert.Equal(t, "john", user.Attributes["uid"][0])
+		assert.Equal(t, "john@example.org", user.Attributes["mail"][0])
+		assert.NotEmpty(t, user.DN)
 	})
 
 	t.Run("AuthenticateWrongPassword", func(t *testing.T) {
-		ok, _, err := client.Authenticate("john", "wrong")
+		ok, _, err := client.Authenticate(ctx, "john", "wrong")
 		assert.Error(t, err)
 		assert.False(t, ok)
 	})
 
 	t.Run("AuthenticateEmptyPassword", func(t *testing.T) {
-		ok, _, err := client.Authenticate("john", "")
+		ok, _, err := client.Authenticate(ctx, "john", "")
 		assert.Error(t, err)
 		assert.False(t, ok)
 		assert.Contains(t, err.Error(), "authentication failed: empty password")
 	})
 
 	t.Run("GetGroupsOfUser", func(t *testing.T) {
-		groups, err := client.GetGroupsOfUser("john")
+		groups, err := client.GetGroupsOfUser(ctx, "john")
 		assert.NoError(t, err)
 		assert.Contains(t, groups, "admins")
 	})

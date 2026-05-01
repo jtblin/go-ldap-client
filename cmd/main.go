@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"strings"
 
-	"github.com/jtblin/go-ldap-client"
+	"github.com/jtblin/go-ldap-client/v2"
 )
 
 var base, bindDN, bindPassword, groupFilter, host, password, serverName, userFilter, username string
@@ -33,7 +34,7 @@ func main() {
 	}
 	defer client.Close()
 
-	ok, user, err := client.Authenticate(username, password)
+	ok, user, err := client.Authenticate(context.Background(), username, password)
 	if err != nil {
 		log.Printf("Error authenticating user %s: %+v", username, err)
 		return
@@ -44,7 +45,7 @@ func main() {
 	}
 	log.Printf("User: %+v", user)
 
-	groups, err := client.GetGroupsOfUser(username)
+	groups, err := client.GetGroupsOfUser(context.Background(), username)
 	if err != nil {
 		log.Printf("Error getting groups for user %s: %+v", username, err)
 		return

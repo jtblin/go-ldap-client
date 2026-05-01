@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/jtblin/go-ldap-client"
+	"github.com/jtblin/go-ldap-client/v2"
 )
 
 // ExampleClient_Authenticate shows how a typical application can verify a login attempt
@@ -23,7 +23,7 @@ func ExampleClient_Authenticate() {
 	}
 	defer client.Close()
 
-	ok, user, err := client.Authenticate("username", "password")
+	ok, user, err := client.Authenticate(context.Background(), "username", "password")
 	if err != nil {
 		log.Printf("Error authenticating user %s: %+v", "username", err)
 		return
@@ -35,8 +35,8 @@ func ExampleClient_Authenticate() {
 	log.Printf("User: %+v", user)
 }
 
-// ExampleClient_AuthenticateContext shows how to use the context-aware Authenticate method
-func ExampleClient_AuthenticateContext() {
+// ExampleClient_Authenticate_timeout shows how to use the context-aware Authenticate method with a timeout
+func ExampleClient_Authenticate_timeout() {
 	client := &ldap.Client{
 		Base:         "dc=example,dc=com",
 		Host:         "ldap.example.com",
@@ -53,7 +53,7 @@ func ExampleClient_AuthenticateContext() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ok, user, err := client.AuthenticateContext(ctx, "username", "password")
+	ok, user, err := client.Authenticate(ctx, "username", "password")
 	if err != nil {
 		log.Printf("Error authenticating user %s: %+v", "username", err)
 		return
@@ -74,7 +74,7 @@ func ExampleClient_GetGroupsOfUser() {
 		GroupFilter: "(memberUid=%s)",
 	}
 	defer client.Close()
-	groups, err := client.GetGroupsOfUser("username")
+	groups, err := client.GetGroupsOfUser(context.Background(), "username")
 	if err != nil {
 		log.Printf("Error getting groups for user %s: %+v", "username", err)
 		return

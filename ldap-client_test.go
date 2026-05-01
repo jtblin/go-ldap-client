@@ -1,12 +1,16 @@
 package ldap
 
 import (
+	"context"
 	"crypto/tls"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
 )
+
+const testUserDN = "uid=testuser,dc=example,dc=com"
 
 type mockConn struct {
 	bindErr      error
@@ -41,7 +45,7 @@ func (m *mockConn) SetTimeout(_ time.Duration) {}
 
 func TestAuthenticate_EmptyPassword(t *testing.T) {
 	client := &Client{}
-	ok, _, err := client.Authenticate("user", "")
+	ok, _, err := client.Authenticate(context.Background(), "user", "")
 	if ok {
 		t.Error("expected authentication to fail for empty password")
 	}
@@ -55,7 +59,7 @@ func TestAuthenticate_Success(t *testing.T) {
 		searchResult: &ldap.SearchResult{
 			Entries: []*ldap.Entry{
 				{
-					DN: "uid=testuser,dc=example,dc=com",
+					DN: testUserDN,
 					Attributes: []*ldap.EntryAttribute{
 						{Name: "uid", Values: []string{"testuser"}},
 						{Name: "mail", Values: []string{"test@example.com"}},
@@ -70,18 +74,123 @@ func TestAuthenticate_Success(t *testing.T) {
 		Attributes: []string{"uid", "mail"},
 	}
 
-	ok, user, err := client.Authenticate("testuser", "password")
+	ok, user, err := client.Authenticate(context.Background(), "testuser", "password")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !ok {
 		t.Error("expected authentication to succeed")
 	}
-	if user["uid"][0] != "testuser" || user["mail"][0] != "test@example.com" {
-		t.Errorf("unexpected user attributes: %v", user)
+	if user.Attributes["uid"][0] != "testuser" || user.Attributes["mail"][0] != "test@example.com" {
+		t.Errorf("unexpected user attributes: %v", user.Attributes)
 	}
-	if mock.boundDN != "uid=testuser,dc=example,dc=com" || mock.boundPWD != "password" {
+	if user.DN != testUserDN {
+		t.Errorf("unexpected user DN: %s", user.DN)
+	}
+	if mock.boundDN != testUserDN || mock.boundPWD != "password" {
 		t.Errorf("unexpected bind DN or password: %s / %s", mock.boundDN, mock.boundPWD)
+	}
+}
+
+func TestGetUser_Success(t *testing.T) {
+	mock := &mockConn{
+		searchResult: &ldap.SearchResult{
+			Entries: []*ldap.Entry{
+				{
+					DN: testUserDN,
+					Attributes: []*ldap.EntryAttribute{
+						{Name: "uid", Values: []string{"testuser"}},
+					},
+				},
+			},
+		},
+	}
+
+	client := &Client{
+		Conn:       mock,
+		Attributes: []string{"uid"},
+	}
+
+	user, err := client.GetUser(context.Background(), "testuser")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if user.DN != testUserDN {
+		t.Errorf("unexpected DN: %s", user.DN)
+	}
+	if user.Attributes["uid"][0] != "testuser" {
+		t.Errorf("unexpected attribute: %v", user.Attributes["uid"])
+	}
+}
+
+func TestGetUser_NotFound(t *testing.T) {
+	mock := &mockConn{
+		searchResult: &ldap.SearchResult{
+			Entries: []*ldap.Entry{},
+		},
+	}
+
+	client := &Client{
+		Conn: mock,
+	}
+
+	user, err := client.GetUser(context.Background(), "nonexistent")
+	if err == nil || err.Error() != "user does not exist" {
+		t.Errorf("expected 'user does not exist' error, got %v", err)
+	}
+	if user != nil {
+		t.Error("expected user to be nil")
+	}
+}
+
+func TestGetUser_TooManyEntries(t *testing.T) {
+	mock := &mockConn{
+		searchResult: &ldap.SearchResult{
+			Entries: []*ldap.Entry{
+				{DN: "uid=user1,dc=example,dc=com"},
+				{DN: "uid=user2,dc=example,dc=com"},
+			},
+		},
+	}
+
+	client := &Client{
+		Conn: mock,
+	}
+
+	user, err := client.GetUser(context.Background(), "duplicate")
+	if err == nil || err.Error() != "too many entries returned" {
+		t.Errorf("expected 'too many entries returned' error, got %v", err)
+	}
+	if user != nil {
+		t.Error("expected user to be nil")
+	}
+}
+
+func TestAuthenticate_InvalidPassword(t *testing.T) {
+	mock := &mockConn{
+		searchResult: &ldap.SearchResult{
+			Entries: []*ldap.Entry{
+				{DN: testUserDN},
+			},
+		},
+		// First bind (readonly) succeeds, second bind (user) fails
+		bindErr: errors.New("invalid credentials"),
+	}
+
+	client := &Client{
+		Conn: mock,
+	}
+
+	ok, user, err := client.Authenticate(context.Background(), "testuser", "wrongpassword")
+	if ok {
+		t.Error("expected authentication to fail")
+	}
+	if err == nil || err.Error() != "invalid credentials" {
+		t.Errorf("expected invalid credentials error, got %v", err)
+	}
+	// We still return the user info even if bind failed (matching current behavior)
+	if user == nil || user.DN != testUserDN {
+		t.Error("expected user info to be returned")
 	}
 }
 
@@ -109,7 +218,7 @@ func TestGetGroupsOfUser_Success(t *testing.T) {
 		Conn: mock,
 	}
 
-	groups, err := client.GetGroupsOfUser("testuser")
+	groups, err := client.GetGroupsOfUser(context.Background(), "testuser")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

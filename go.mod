@@ -1,4 +1,4 @@
-module github.com/jtblin/go-ldap-client
+module github.com/jtblin/go-ldap-client/v2
 
 go 1.26.0
 
