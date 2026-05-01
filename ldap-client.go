@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
@@ -234,10 +235,16 @@ func (lc *Client) GetGroupsOfUser(ctx context.Context, username string) ([]strin
 		return nil, err
 	}
 
+	filter := strings.ReplaceAll(lc.GroupFilter, "{dn}", user.DN)
+	filter = strings.ReplaceAll(filter, "{username}", username)
+	if strings.Contains(filter, "%s") {
+		filter = fmt.Sprintf(filter, username)
+	}
+
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(lc.GroupFilter, user.DN),
+		filter,
 		[]string{"cn"},
 		nil,
 	)

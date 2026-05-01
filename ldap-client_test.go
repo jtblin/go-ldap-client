@@ -255,7 +255,7 @@ func TestGetGroupsOfUser_Success(t *testing.T) {
 	client := &Client{
 		Conn:        mock,
 		UserFilter:  "(uid=%s)",
-		GroupFilter: "(memberUid=%s)",
+		GroupFilter: "(memberUid={dn})",
 	}
 
 	groups, err := client.GetGroupsOfUser(context.Background(), "testuser")
@@ -269,6 +269,50 @@ func TestGetGroupsOfUser_Success(t *testing.T) {
 
 	if mock.searchRequest.Filter != fmt.Sprintf("(memberUid=%s)", testUserDN) {
 		t.Errorf("unexpected filter: %s", mock.searchRequest.Filter)
+	}
+}
+
+func TestGetGroupsOfUser_LegacyFilter(t *testing.T) {
+	mock := &mockConn{
+		searchResults: map[string]*ldap.SearchResult{
+			"(uid=testuser)": {
+				Entries: []*ldap.Entry{
+					{
+						DN: testUserDN,
+						Attributes: []*ldap.EntryAttribute{
+							{Name: "uid", Values: []string{"testuser"}},
+						},
+					},
+				},
+			},
+			"(memberUid=testuser)": {
+				Entries: []*ldap.Entry{
+					{
+						Attributes: []*ldap.EntryAttribute{
+							{Name: "cn", Values: []string{"group1"}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	client := &Client{
+		Conn:        mock,
+		UserFilter:  "(uid=%s)",
+		GroupFilter: "(memberUid=%s)",
+	}
+
+	groups, err := client.GetGroupsOfUser(context.Background(), "testuser")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if mock.searchRequest.Filter != "(memberUid=testuser)" {
+		t.Errorf("unexpected filter: %s", mock.searchRequest.Filter)
+	}
+	if groups[0] != "group1" {
+		t.Errorf("unexpected group: %s", groups[0])
 	}
 }
 

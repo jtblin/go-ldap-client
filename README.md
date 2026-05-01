@@ -121,8 +121,9 @@ client := &ldap.Client{
     BindDN:       "cn=readonly,ou=ServiceAccounts,dc=example,dc=org",
     BindPassword: "password",
     UserFilter:   "(sAMAccountName=%s)",
-    // In v2.0.0+, the GroupFilter %s is automatically populated with the user's full DN
-    GroupFilter:  "(member=%s)", 
+    // In v2.1.0+, you can use {dn} or {username} tokens in the GroupFilter.
+    // For AD, you typically need the user's full DN.
+    GroupFilter:  "(member={dn})", 
     Attributes:   []string{"sAMAccountName", "mail", "cn"},
 }
 ```
