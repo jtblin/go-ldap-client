@@ -18,6 +18,7 @@ type mockConn struct {
 	searchErr    error
 	startTLSErr  error
 	closed       bool
+	isClosing    bool
 	boundDN      string
 	boundPWD     string
 }
@@ -42,6 +43,8 @@ func (m *mockConn) StartTLS(_ *tls.Config) error {
 }
 
 func (m *mockConn) SetTimeout(_ time.Duration) {}
+
+func (m *mockConn) IsClosing() bool { return m.isClosing }
 
 func TestAuthenticate_EmptyPassword(t *testing.T) {
 	client := &Client{}
@@ -89,6 +92,27 @@ func TestAuthenticate_Success(t *testing.T) {
 	}
 	if mock.boundDN != testUserDN || mock.boundPWD != "password" {
 		t.Errorf("unexpected bind DN or password: %s / %s", mock.boundDN, mock.boundPWD)
+	}
+}
+
+func TestConnect_ReconnectOnClose(t *testing.T) {
+	mock1 := &mockConn{isClosing: true}
+	mock2 := &mockConn{}
+	client := &Client{
+		Conn: mock1,
+		Dialer: func(_ context.Context, _ string, _ *tls.Config) (Conn, error) {
+			return mock2, nil
+		},
+	}
+
+	// This should trigger a new connection because mock1.IsClosing() is true
+	err := client.Connect(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if client.Conn != mock2 {
+		t.Errorf("expected client.Conn to be mock2, but got %v", client.Conn)
 	}
 }
 

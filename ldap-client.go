@@ -27,6 +27,7 @@ type Conn interface {
 	Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error)
 	StartTLS(config *tls.Config) error
 	SetTimeout(time.Duration)
+	IsClosing() bool
 }
 
 // Client represents the configuration for the LDAP client.
@@ -63,11 +64,13 @@ type Client struct {
 	ClientCertificates []tls.Certificate
 	// TLSConfig provides a custom TLS configuration. If set, it overrides other TLS settings.
 	TLSConfig *tls.Config
+	// Dialer is an optional function to create a connection. If nil, the default dialer is used.
+	Dialer func(ctx context.Context, addr string, tlsConfig *tls.Config) (Conn, error)
 }
 
 // Connect connects to the ldap backend.
 func (lc *Client) Connect(ctx context.Context) error {
-	if lc.Conn != nil {
+	if lc.Conn != nil && !lc.Conn.IsClosing() {
 		return nil
 	}
 
@@ -92,6 +95,10 @@ func (lc *Client) Connect(ctx context.Context) error {
 }
 
 func (lc *Client) dial(ctx context.Context, address string) (Conn, error) {
+	if lc.Dialer != nil {
+		return lc.Dialer(ctx, address, lc.TLSConfig)
+	}
+
 	var l *ldap.Conn
 	var err error
 
