@@ -229,23 +229,15 @@ func (lc *Client) Authenticate(ctx context.Context, username, password string) (
 
 // GetGroupsOfUser returns the group for a user.
 func (lc *Client) GetGroupsOfUser(ctx context.Context, username string) ([]string, error) {
-	err := lc.Connect(ctx)
+	user, err := lc.GetUser(ctx, username)
 	if err != nil {
 		return nil, err
-	}
-
-	// First bind with a read only user
-	if lc.BindDN != "" && lc.BindPassword != "" {
-		err = lc.Conn.Bind(lc.BindDN, lc.BindPassword)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(lc.GroupFilter, username),
+		fmt.Sprintf(lc.GroupFilter, user.DN),
 		[]string{"cn"},
 		nil,
 	)
@@ -255,7 +247,7 @@ func (lc *Client) GetGroupsOfUser(ctx context.Context, username string) ([]strin
 	}
 	groups := []string{}
 	for _, entry := range sr.Entries {
-		groups = append(groups, entry.GetAttributeValue("cn"))
+		groups = append(groups, entry.GetAttributeValues("cn")...)
 	}
 	return groups, nil
 }

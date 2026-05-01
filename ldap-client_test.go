@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,14 +14,16 @@ import (
 const testUserDN = "uid=testuser,dc=example,dc=com"
 
 type mockConn struct {
-	bindErr      error
-	searchResult *ldap.SearchResult
-	searchErr    error
-	startTLSErr  error
-	closed       bool
-	isClosing    bool
-	boundDN      string
-	boundPWD     string
+	bindErr       error
+	searchResult  *ldap.SearchResult
+	searchResults map[string]*ldap.SearchResult
+	searchErr     error
+	startTLSErr   error
+	closed        bool
+	isClosing     bool
+	boundDN       string
+	boundPWD      string
+	searchRequest *ldap.SearchRequest
 }
 
 func (m *mockConn) Bind(username, password string) error {
@@ -34,7 +37,13 @@ func (m *mockConn) Close() error {
 	return nil
 }
 
-func (m *mockConn) Search(_ *ldap.SearchRequest) (*ldap.SearchResult, error) {
+func (m *mockConn) Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error) {
+	m.searchRequest = searchRequest
+	if m.searchResults != nil {
+		if res, ok := m.searchResults[searchRequest.Filter]; ok {
+			return res, nil
+		}
+	}
 	return m.searchResult, m.searchErr
 }
 
@@ -220,18 +229,23 @@ func TestAuthenticate_InvalidPassword(t *testing.T) {
 
 func TestGetGroupsOfUser_Success(t *testing.T) {
 	mock := &mockConn{
-		searchResult: &ldap.SearchResult{
-			Entries: []*ldap.Entry{
-				{
-					DN: "cn=group1,dc=example,dc=com",
-					Attributes: []*ldap.EntryAttribute{
-						{Name: "cn", Values: []string{"group1"}},
+		searchResults: map[string]*ldap.SearchResult{
+			"(uid=testuser)": {
+				Entries: []*ldap.Entry{
+					{
+						DN: testUserDN,
+						Attributes: []*ldap.EntryAttribute{
+							{Name: "uid", Values: []string{"testuser"}},
+						},
 					},
 				},
-				{
-					DN: "cn=group2,dc=example,dc=com",
-					Attributes: []*ldap.EntryAttribute{
-						{Name: "cn", Values: []string{"group2"}},
+			},
+			fmt.Sprintf("(memberUid=%s)", testUserDN): {
+				Entries: []*ldap.Entry{
+					{
+						Attributes: []*ldap.EntryAttribute{
+							{Name: "cn", Values: []string{"group1", "group2"}},
+						},
 					},
 				},
 			},
@@ -239,15 +253,22 @@ func TestGetGroupsOfUser_Success(t *testing.T) {
 	}
 
 	client := &Client{
-		Conn: mock,
+		Conn:        mock,
+		UserFilter:  "(uid=%s)",
+		GroupFilter: "(memberUid=%s)",
 	}
 
 	groups, err := client.GetGroupsOfUser(context.Background(), "testuser")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if len(groups) != 2 || groups[0] != "group1" || groups[1] != "group2" {
 		t.Errorf("unexpected groups: %v", groups)
+	}
+
+	if mock.searchRequest.Filter != fmt.Sprintf("(memberUid=%s)", testUserDN) {
+		t.Errorf("unexpected filter: %s", mock.searchRequest.Filter)
 	}
 }
 
