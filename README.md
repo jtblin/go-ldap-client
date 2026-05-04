@@ -1,5 +1,12 @@
 # go-ldap-client
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/jtblin/go-ldap-client/v2.svg)](https://pkg.go.dev/github.com/jtblin/go-ldap-client/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jtblin/go-ldap-client/v2)](https://goreportcard.com/report/github.com/jtblin/go-ldap-client/v2)
+[![CI](https://github.com/jtblin/go-ldap-client/actions/workflows/ci.yml/badge.svg)](https://github.com/jtblin/go-ldap-client/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/jtblin/go-ldap-client/branch/main/graph/badge.svg)](https://codecov.io/gh/jtblin/go-ldap-client)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub release](https://img.shields.io/github/v/release/jtblin/go-ldap-client)](https://github.com/jtblin/go-ldap-client/releases)
+
 Simple LDAP client for Go to authenticate users, retrieve basic information, and fetch groups.
 
 ## Features
