@@ -135,6 +135,30 @@ client := &ldap.Client{
 }
 ```
 
+## Development
+
+### Prerequisites
+
+- Go 1.26+
+- Docker (for integration tests)
+
+### Commands
+
+```bash
+make setup  # Install development tools
+make build  # Build the project
+make test   # Run unit tests
+make lint   # Run linters
+```
+
+### Integration Tests
+
+Integration tests use [Testcontainers](https://testcontainers.com/) to run a real LDAP server.
+
+```bash
+go test -v -tags=integration ./...
+```
+
 ## Documentation
 
 Full documentation can be found on [pkg.go.dev](https://pkg.go.dev/github.com/jtblin/go-ldap-client/v2).
