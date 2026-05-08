@@ -151,12 +151,10 @@ make test   # Run unit tests
 make lint   # Run linters
 ```
 
-### Integration Tests
-
 Integration tests use [Testcontainers](https://testcontainers.com/) to run a real LDAP server.
 
 ```bash
-go test -v -tags=integration ./...
+make test-integration
 ```
 
 ## Documentation

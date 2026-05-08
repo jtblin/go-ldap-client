@@ -11,6 +11,11 @@ build:
 test:
 	go test -v -cover ./...
 
+test-integration:
+	go test -v -tags=integration -cover ./...
+
+test-all: test test-integration
+
 $(GOLANGCI_LINT):
 	@echo "Installing golangci-lint..."
 	@mkdir -p $(BIN_DIR)

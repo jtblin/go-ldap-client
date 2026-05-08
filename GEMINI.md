@@ -13,9 +13,15 @@ A simple LDAP client for Go to authenticate users, retrieve basic information, a
 ## Build & Test Commands
 - `rtk make build`: Build the project.
 - `rtk make test`: Run unit tests.
-- `rtk go test -v -tags=integration ./...`: Run integration tests (requires Docker for Testcontainers).
+- `rtk make test-integration`: Run integration tests (requires Docker).
+- `rtk make test-all`: Run all tests.
 - `rtk make lint`: Run linters.
 - `rtk make fmt`: Format code.
+
+## Workflows
+- `sync-docs`: Update and maintain GEMINI.md and README.md documentation.
+- `release-management`: Analyze changes, generate notes, and manage GitHub releases.
+- `smart-commit`: Generate conventional commit messages and enforce atomic commits.
 
 ## Coding Patterns
 - **Context Support**: All methods require `context.Context`.
